@@ -304,17 +304,32 @@ multiple(1, 2, 3, 4);
 
 # 23.new 操作符的执行过程
 
-function objFactory() {}
-objFactory(constructor,newObj)
-
 1. 创建一个新的空对象
 2. 将新对象的原型设置成构造函数的 prototype 对象
-   `newObj = Object.create(constructor.prototype);`
-   constructor 是要从外部传进来的构造函数
-3. 让构造函数的 this 指向新对象，执行构造函数，为这个新对象添加属性
-   `constructor.apply(newObj, arguments)`
-   arguments 是要从外部传进来的初始化参数
-4. 判断构造函数的返回值类型，如果是值类型，返回新对象，如果是引用类型，就直接返回
+3. 让构造函数的 this 指向新对象，执行构造函数的代码
+4. 判断构造函数的返回值类型，如果是值类型，返回新对象，如果是引用类型，就直接返回引用类型的对象
+   (第四步为什么这样返回呢？因为构造函数本来就是这样。。。)
+   构造函数可以没有返回值，默认返回 undefined，new 就默认返回实例化对象
+   如果返回的是 number、boolean、string 这种基本类型，也是返回实例化对象
+   但如果构造函数直接返回了一个对象，那么 new 就会返回这个对象
+
+```js
+function objFactory() {
+	//1.创建一个空对象
+	let newObj = null;
+	// 取出构造函数
+	let constructor = Array.prototype.shift.call(arguments);
+	//2.将空对象的原型设置为构造函数的原型对象
+	newObj = Object.create(constructor.prototype);
+	//3.将构造函数的this指向新对象，并执行构造函数
+	let result = constructor.apply(newObj, arguments);
+	//4.判断构造函数的返回值类型，如果返回的是值类型，则返回新对象。如果是引用类型，则返回引用类型
+	let returnType = typeof result === "object" || typeof result === "function";
+	return returnType ? result : newObj;
+}
+
+objFactory(构造函数, 初始化参数);
+```
 
 # 24.map 和 object 的区别
 
@@ -601,6 +616,31 @@ Person.prototype.constructor; // Person
 终点是 `Object.prototype.__proto__`
 = null
 
+# 48. 继承
+
+子类要拥有父类的全部属性和方法，同时子类还能定义自己特有的属性和方法
+实现继承：
+
+- es6 使用 extends 关键字，
+
+- 原型链继承
+  父类的共享方法和属性都在父类的原型对象上，
+  将子类的原型指向父类的实例对象，就可以通过父类的实例对象间接访问到父类的原型对象
+  Child.prototype = new Parent()
+  要将 Child.prototype.constructor 指回原来的构造函数
+- 构造函数继承
+  定义一个父构造函数和子构造函数，子构造函数通过 call()继承父构造函数的属性
+  缺点：不能继承父类原型上的属性和方法
+  ```js
+  function Father(name, age) {
+  	this.name = name;
+  	this.age = age;
+  }
+  function Child(name, age) {
+  	Father.call(this, name, age);
+  }
+  ```
+
 # 48.如何获取对象非原型链上的属性？
 
 `for...in`遍历对象，然后用`hasOwnProperty()`来判断属性是否是属于原型链的属性
@@ -608,24 +648,25 @@ Person.prototype.constructor; // Person
 # 49. 对闭包的理解？
 
 闭包是**可以访问另一函数作用域中变量的函数**
-作用：
+优点：
 
-- 在函数外部可以访问到函数内部的变量
+- 闭包中的变量是私有的，可以避免全局污染
 - 运行结束的函数中的变量继续留在内存中
+
+缺点：被引用的变量不能销毁，滥用闭包可能造成内存泄漏
+（在数据被引用的情况下，不会被垃圾回收，因为闭包内的数据在外部有使用，所以不会被释放内存）
 
 应用场景：
 
 - 封装私有变量和函数
-- 维护变量的生命周期，让运行结束的函数中的变量继续留在内存中
-- 实现高阶函数（函数作为参数或者函数作为返回值的函数）
-
-优点：解决全局作用域中变量容易污染，局部作用域中变量无法长期驻留的问题
-缺点：被引用的变量不能销毁，可能造成内存泄漏
+- 实现防抖和节流函数
+- 实现立即执行函数
+- 模拟块级作用域
 
 ```js
 for (var i = 1; i <= 5; i++) {
 	(function (j) {
-		setTimeout(function timer() {
+		setTimeout(() => {
 			console.log(j);
 		}, i * 1000);
 	})(i);
@@ -697,7 +738,8 @@ call 后面的参数数量不固定，从第二个参数开始往后，每个参
    利用 Promise 可以将回调函数的嵌套调用改成链式调用
 4. Generator 函数
    generator 函数里的异步操作可以写成同步的顺序
-   在函数内用 yield 表达式可以暂停函数执行，函数外 next()方法可以恢复函数执行
+   在函数内用 yield 可以暂停函数执行，函数外 next()可以恢复函数执行
+   直接调用 generator()函数返回一个遍历器对象，调用一次遍历器对象的 next()就执行函数里的一个 yield 表达式
 5. async/await
    执行 await 语句，如果语句返回一个 promise 对象，函数会等到 promise 状态变为 resolve 再继续往下执行
 
@@ -746,7 +788,7 @@ promise 还有一个 then()方法，使用 then()可以为成功的状态和失�
 # 59. 对 async/await 的理解
 
 async/await 可以让我们写出同步化代码，相比 promise then 的链式调用，提高了代码可读性
-async 关键字可以声明一个函数是异步的，await 等待一个异步方法执行完成，会阻塞 async 函数中后续代码的执行
+async 关键字可以声明一个函数是异步的，await 后一般是一个 promise 对象，函数会等待这个 promise 对象的状态变化，状态变为 resolved 了才会继续执行后面的代码，如果状态变为 rejectd 函数会中断执行
 async 函数返回一个 promise 对象，如果在函数中 return 一个直接量，这个 promise 对象状态就是成功的，值就是 return 的这个值，如果没有返回值，就会返回一个值是 undefined 的成功对象
 
 # 60. async/await 如何捕获异常
@@ -756,7 +798,7 @@ async 函数返回一个 promise 对象，如果在函数中 return 一个直接
 
 # 61. 垃圾回收机制
 
-垃圾回收：js 代码运行时，会分配内存空间来存储变量和值，当变量不再用到，系统就会收回被占用的内存空间
+垃圾回收：创建变量的时候给变量分配了内存，当变量不再用到，系统就会收回被占用的内存
 
 垃圾回收机制：js 有自动垃圾回收机制，会定期释放不再使用的变量占用的内存
 
@@ -782,3 +824,64 @@ async 函数返回一个 promise 对象，如果在函数中 return 一个直接
 - 设置了 setInterval 定时器忘记取消
 - dom 对象的事件监听函数，没有移除监听
 - 滥用闭包，闭包会导致函数中引用的变量一直保存在内存中，内存占用空间过大，会有内存泄漏的威胁
+
+# 63. Object.create()和 new Object()的区别
+
+- new Object()继承内置对象 Object，Object.create()继承指定的对象
+- Object.create(null)会创建一个没有原型的对象，new Object()创建的对象的原型指向 Object.prototype
+
+# 64. 赋值、浅拷贝、深拷贝
+
+赋值 !== 浅拷贝
+赋值：
+新对象属性改变，也会引起原对象属性改变
+
+```js
+const obj1 = {
+	name: "poem",
+	age: [20],
+};
+const obj2 = obj1;
+obj2.name = "poem2";
+obj2.age[0] = 30;
+console.log(obj1.name, obj2.name, obj1.age[0], obj2.age[0]);
+// poem2 poem2 30 30
+```
+
+浅拷贝：
+新对象属性改变，如果变的是简单类型，原对象属性不会改变
+如果变的是复杂类型，原对象属性会改变
+
+```js
+const obj1 = {
+	name: "poem",
+	age: [20],
+};
+function shallowCopy(obj) {
+	let obj2 = {};
+	for (let key in obj) {
+		if (obj.hasOwnProperty(key)) {
+			obj2[key] = obj[key];
+		}
+	}
+	return obj2;
+}
+const obj2 = shallowCopy(obj1);
+obj2.name = "poem2";
+obj2.age[0] = 30;
+console.log(obj1.name, obj2.name, obj1.age[0], obj2.age[0]);
+// poem poem2 30 30
+```
+
+深拷贝：
+新对象属性改变，原对象不会变
+
+# 65. 实现浅拷贝、深拷贝的方法
+
+浅拷贝：
+Object.assign()、扩展运算符、数组的 slice()、concat()
+
+深拷贝：
+JSON.parse(JSON.stringify())
+
+# 66.数组去重有哪些方法

@@ -15,6 +15,8 @@ vue 实例创建时，vue 会遍历 data 中的属性，用 Object.definePropert
 - 通过下标修改数组数据也拦截不到，vue 只重写了数组的部分方法，限制在 push、pop、shift、unshift、splice、sort、reverse，其他数组方法的操作也拦截不到
 
 vue3 使用 proxy 实现数据劫持，可以监听到任何形式的数据改变，没有了这么多限制
+（proxy 代理的是整个对象，Object.defineProperty 代理的是属性）
+（如果对象嵌套层级很深，需要递归代理，proxy 可以只在调用时递归，Object 需要一次性递归完，proxy 性能更好）
 
 # 4. 什么是 MVVM
 
@@ -42,8 +44,9 @@ MVVM、MVC、MVP 是三种常见的架构模式，都是为了解决 UI 界面�
   Model-View-ViewModel
   Model 代表数据模型，View 代表 UI 视图，
   ViewModel 负责监听 Model 中数据的改变并控制 View 视图的更新
-  Model 和 View 没有直接联系，只能通过 ViewModel 联系，Model 和 ViewModel 有双向数据绑定的联系，
-  Model 数据改变会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改，相较于 MVP 实现了 Model 和 View 的数据自动同步
+  Model 和 View 没有直接联系，只能通过 ViewModel 联系
+  Model 数据改变会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改，
+  相较于 MVP 采用了数据双向绑定，实现了 Model 和 View 的数据自动同步
 
 # 6.Computed 和 Watch 的区别
 
@@ -51,9 +54,13 @@ computed
 
 - 支持缓存，只有依赖的数据发生了变化，才会重新计算
 - 不支持异步，computed 中有异步操作的时候，无法监听数据的变化
-- watch
+- 一开始就会执行一次
+
+watch
+
 - 不支持缓存，数据变化时就触发相应操作
 - 支持异步监听
+- 一开始默认不执行，除非设置 immediate 为 true
 
 应用场景：
 当要进行数值计算，并且依赖其他数据时，使用 computed，可以利用缓存特性，避免每次获取值都要重新计算
@@ -197,7 +204,7 @@ static 中的资源不会被 webpack 处理，打包后直接复制到 dist 下
 # 21.对 ssr 的理解
 
 ssr 就是服务端渲染
-把 vue 在客户端把标签渲染成 html 的工作放在服务端完成，再把 html 返回给客户端
+在服务端渲染 html，再把 html 返回给客户端
 
 优点：
 
@@ -208,20 +215,7 @@ ssr 就是服务端渲染
 
 - 服务端压力较大
 
-# 22.为什么客户端渲染不利于 seo
-
-有利于 seo 指的是让爬虫来爬我们的页面
-搜索引擎的爬虫原理就是请求 url，url 返回的 html 就是爬虫爬取到的内容
-但是爬虫不会加载和执行 js 脚本，客户端渲染返回的 html 几乎是空的
-需要执行 js 脚本之后才会渲染真正的页面，所以爬虫几乎爬不到什么内容
-
-# 23.为什么服务端渲染的白屏时间更短？
-
-服务端渲染在浏览器请求 url 之后就得到了一个带数据的 html，浏览器只需要解析 html
-但客户端渲染只得到一个空的 html，此时页面已经进入白屏，之后还要经过加载和执行 js 脚本、请求后端服务器获取数据，渲染页面等几个过程才能看到最后的页面
-并且复杂应用中要加载的 js 会很大，这会使首屏时间很长
-
-# 24.vue 的性能优化有哪些
+# 22.vue 的性能优化有哪些
 
 代码层面：
 
@@ -247,7 +241,7 @@ webpack 层面：
 - 开启 gzip 压缩
 - 缓存静态资源
 
-# 25.说一下 vue 的生命周期
+# 23.说一下 vue 的生命周期
 
 vue 实例创建时会经过一系列初始化过程
 生命周期钩子就是到达某一个阶段就会触发的函数，是为了完成一些操作
@@ -279,7 +273,7 @@ vue 实例创建时会经过一系列初始化过程
 - activated：keep-alive 缓存的组件被激活时
 - deactivated：keep-alive 缓存的组件被停用时
 
-# 26.vue 子组件和父组件执行顺序
+# 24.vue 子组件和父组件执行顺序
 
 加载渲染：
 
@@ -306,12 +300,12 @@ vue 实例创建时会经过一系列初始化过程
 3. 子组件 destroyed
 4. 父组件 destroyed
 
-# 27.created 和 mounted 的区别
+# 25.created 和 mounted 的区别
 
 created()在模板渲染成 html 之前调用，无法访问 DOM
 mounted()在模板渲染成 html 之后调用，可以访问 DOM
 
-# 28.组件通信的方式
+# 26.组件通信的方式
 
 父子：
 
@@ -344,13 +338,12 @@ mounted()在模板渲染成 html 之后调用，可以访问 DOM
   ```
 
 - ref 和$refs
-  在子组件上设置 ref 属性，ref 会给子组件注册引用信息，ref="child"
-  引用信息注册在父组件的$refs 对象上，在父组件中可以用 `this.$refs.child`访问子组件中的数据和方法
+  在子组件上设置 ref 属性，ref="child"
+  在父组件中可以用 `this.$refs.child`访问子组件中的数据和方法
 
 - $parent和$children
   子组件中使用$parent 可以访问父组件实例
   父组件中使用$children 得到子组件数组
-  兄弟：
 
 兄弟：
 
@@ -363,53 +356,10 @@ mounted()在模板渲染成 html 之后调用，可以访问 DOM
 也可以使用 eventBus 事件总线
 vuex
 
-# 29.Vuex
-
-Vuex 是一种状态管理模式，将组件的共享状态抽取为一个 store
-并且 vuex 的状态是响应式的，组件从 store 读取状态时，若状态发生改变，该组件也会更新
-Vuex 有几大属性：
-
-- state：存储状态
-- getters：类似于计算属性，可以对 state 进行加工
-- mutations：用来修改 state，只能进行同步操作，要执行 mutation 中的方法时要 使用 commit 触发
-- actions：用来提交 mutation，只能进行异步操作，执行 actions 中的方法要 dispatch
-- modules：模块化 vuex，每个模块都有自己的 state、getters、mutations、actions
-
-# 30. vuex 中 mutation 和 action 的区别
-
-- mutations 中的方法可以直接修改 state，actions 中的方法是用来提交 mutation，而不是直接改变 state
-- mutation 必须是同步方法，action 可以是异步方法
-
-# 31.为什么 mutation 不能做异步操作？
-
-每个 mutation 执行完都对应一个状态变化，devtools 就可以记录下来，便于我们调试
-如果 mutation 支持异步操作，就不知道状态是什么时候更新的，devtools 跟踪不到
-
-# 32.如何批量使用 vuex 的 getter 和 mutation
-
-使用 mapGetters()和 mapMutations()，
-用对象展开符把 getter 和 mutation 混入 computed 和 methods
-
-```js
-computed: {
-  ...mapGetters([''])
-},
-methods: {
-  ...mapMutations([''])
-}
-```
-
-# 33. vuex 和 localStorage 的区别
-
-- vuex 存储在内存中，localStorage 存储在本地，读取内存速度比读取硬盘快
-- vuex 集中管理组件的状态，一般用于组件之间传递数据，localStorage 将数据存储到浏览器，一般用于跨页面传递数据
-- 刷新页面时 vuex 存储的值会丢失，localStorage 不会
-- vuex 可以实现数据响应式，localStorage 做不到
-
-# 34.vue3 有什么更新
+# 32.vue3 有什么更新
 
 - 使用 proxy 实现数据监听，可以监听到任何形式的数据改变，没有 Object.defineProperty 的很多限制
-- composition api
+- composition 组合式 api
   vue2 中的 options，一个功能被分割到了 data、methods、computed 里，导致耦合度高难维护，vue3 的组合式 api 会把一个功能的代码放一起
 - 重写虚拟 DOM
   优化了虚拟 DOM 的 diff 算法，之前需要比较每一个节点是否变化，vue3 中则只会跟踪被标记了的节点，不会管静态节点
@@ -420,32 +370,55 @@ methods: {
   - Suspense 展示异步组件
 - 基于 tree-shaking 摇树优化，重构了一些 api，减小了代码量（比如 vue2 中的 Vue. nextTick 没有用到也会打包进来，vue3 就是只有引入进来的会打包）
 
-# 35. 对虚拟 DOM 的理解
+# 33. 对虚拟 DOM 的理解
 
 - 虚拟 DOM 本身是一个 js 对象，它用属性来描述一个视图
 - 虚拟 DOM 设计的最初目的是为了更好的跨平台，它抽象了真实 DOM 的渲染过程，不局限于浏览器
 - 使用虚拟 DOM 可以减少直接操作真实 DOM 的次数，利用 diff 算法比较新旧虚拟 DOM，只更新变化的部分，不会引起频繁的重排和重绘
 - 缺点是首次渲染 DOM 的时候多了一层虚拟 DOM 的计算，速度比正常稍慢
 
-# 36.diff 算法的原理
+# 34.diff 算法的原理
 
-patch()方法，利用 sameVnode()比较新旧节点是否是相同节点，
-不相同则新建节点替换掉旧节点，相同则调用 patchVnode()再比较子节点
+简单来说就是对着虚拟 DOM 树从上到下进行同层对比
 
-patchVnode()判断双方是否都有子节点，
-如果新节点没有子节点，旧节点有就将旧节点移除。
-如果新节点有子节点，旧节点没有就添加新的子节点
-如果新旧节点都有子节点就调用 updateChildren()继续比较
+<!-- 在对比新旧虚拟 DOM 时，
+先对比节点本身，判断是否为相同节点，如果不相同就删除该节点重新创建节点
 
-updateChildren()递归比较所有子节点
+- 如果是相同节点，就要继续判断双方是否都有子节点，
+  - 如果新节点没有子节点，就将旧节点移除
+  - 如果新节点有子节点，就给旧节点添加新的子节点
+  - 如果都有子节点，就继续判断如何对子节点进行操作，递归比较所有子节点 -->
 
-# 37. vue 中 key 的作用
+1. patch()对新旧节点进行比较，比较 tag 和 key
+   如果新节点不存在就销毁旧节点，如果旧节点不存在，就创建新的节点
+   当两个节点相同的时候，执行 patchVnode()
+2. patchVnode 比较子节点
+   - 新有子节点，旧没有子节点，创建新的子节点
+   - 新没有，旧有，删除旧的
+   - 新旧都有执行 updateChildren()
+3. updateChildren 比较新旧节点的子节点列表
+   4 个指针指向新旧子节点列表的头和尾，然后。。
+
+# 35. vue 中 key 的作用
 
 - v-if 使用 key，v-if 切换前后会尽可能复用元素，如果是 input，切换前后用户的输入不会被清除
   这时候可以用 key 来唯一地标识一个元素，使用了 key 就不会复用
 - v-for 使用 key，v-for 渲染的列表更新的时候是“就地更新”，就是尽可能复用节点，
   这时候给每一项绑定一个 key，能让 vue 更快地判断这一项是否能进行复用，提高效率
 
-# 38. 为什么不建议 index 作为 key
+# 36. 为什么不建议 index 作为 key
 
 如果有破坏顺序的操作，每个节点对应的 key 都会变化，导致不能复用
+
+# 37. vue 的兼容性
+
+vue 支持所有兼容 es5 的浏览器，ie8 及以下浏览器均不支持 vue
+vue 实例初始化时会遍历 data 中的所有属性，并使用 Object.defineProperty 把这些属性全部转为 getter/setter
+Object.defineProperty 没办法用低级浏览器中的方法实现，所以 vue 不支持
+
+# 38. vue3.0 实现数据双向绑定
+
+通过 proxy 实现的，它在目标对象之前设置了一层拦截，访问目标对象都必须先经过这层拦截
+因此可以对外部的访问进行改写
+new Proxy(target, handler)生成一个 proxy 实例，target 是被代理对象，handler 里可以提供一些劫持操作
+proxy 的两个优点：可以劫持整个对象，并且有 13 种劫持方法
