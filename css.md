@@ -37,14 +37,17 @@ id 选择器 100 >
 
 # 5.display:none 和 visibility:hidden 的区别
 
-- display:none 会让元素从渲染树中消失，渲染时不会占据空间
-- visibility:hidden 不会让元素从渲染树中消失，渲染的元素还会占据空间
+1. display:none 会让元素从渲染树中消失，渲染时不会占据空间
 
-- display:none 是不可继承属性
-- visibility:hidden 是继承属性
+    visibility:hidden 不会让元素从渲染树中消失，渲染的元素还会占据空间
 
-- 修改 display 属性会引起文档的重排
-- 修改 visibility 属性只会引起本元素的重绘
+2. display:none 是不可继承属性
+
+    visibility:hidden 是继承属性
+
+3,修改 display 属性会引起文档的重排
+
+    修改 visibility 属性只会引起本元素的重绘
 
 # 6.link 和@import 的区别
 
@@ -88,7 +91,7 @@ dpr：设备像素 ：设备独立像素
 3:1 => 9 个物理像素显示 1 个逻辑像素
 比如 iphone6 的物理像素是 `750 * 1334`，逻辑像素是 `375 * 667`，dpr=2
 
-对于图片来说，为了不失真，1 个图片像素要对应 1 个物理像素，
+对于图片来说，为了不失真，1 个物理像素要显示1 个图片像素
 假设用来显示图片的设备的物理像素是图片像素的 2 倍，比如物理像素 200000，但图片像素只有 100000，
 那剩下的 100000 物理像素只能就近取色来填充图片，就会看起来模糊
 所以要采用 2 倍图来保证不失真
@@ -126,17 +129,23 @@ display: -webkit-box;
 
 # 14.对 css 工程化的理解
 
-css 工程化可以解决一些问题：
+采用一些规范和工具来管理css代码，
 
-- 怎么样写出更好的 css？
-- css 的构建，怎么样能让它的打包结果更优
-- 可维护性，怎么降低后续维护成本
+提高css代码的可维护性、复用性，减小代码体积之类的
 
 比较流行的 css 工程化实践：
 
 - 预处理器：less、sass 等（将类 css 语言编译成 css，提高 css 代码复用性，更好维护
+
+- 代码规范和css风格检查：eslint、stylelint
+
 - postcss（编译还不被浏览器支持的 css 语法，添加浏览器私有前缀
-- webpack loader（webpack 在 loader 的辅助下才能处理 css
+
+- 自动化构建工具：比如webpack，压缩代码、优化css文件体积和性能
+
+- 样式复用：使用Tailwind css、unocss等css框架，封装常用的样式，来实现样式的复用
+  
+  *webpack loader（webpack 在 loader 的辅助下才能处理 css
   **如何用 webpack 实现对 css 的处理？**
   css-loader 和 style-loader，
   css-loader 导入 css 模块，编译 css 代码
@@ -145,11 +154,15 @@ css 工程化可以解决一些问题：
 
 # 15.如何判断元素是否到达可视区域？
 
-window.innerHeight：浏览器可视区高度
-document.body.scrollTop || document.document.scrollTop：浏览器滚动过的高度
-img.offsetTop：图片顶部到浏览器顶部的距离
+1. window.innerHeight：浏览器可视区高度
+   document.body.scrollTop || document.document.scrollTop：浏览器滚动过的高度
+   img.offsetTop：图片顶部到浏览器顶部的距离
 
-img.offsetTop < window.innerHeight + document.body.scrollTop
+   img.offsetTop < window.innerHeight + document.body.scrollTop
+
+2. getBoundingClientRect()获取元素相对于视口的位置
+
+3. intersection observer交叉观察器，观察目标元素和可视窗口的交叉区域，当目标元素进入和离开可视区域都会触发相应的回调函数
 
 # 16. px、em、rem 的区别和使用场景
 
@@ -207,13 +220,19 @@ em 和 rem 更灵活，em 相对于父元素，rem 相对于根元素，它们�
 flex-wrap 指定换行方式
 项目可以使用 order 属性来指定项目的排列顺序
 
+# flex: 1 是哪些属性的缩写，对应属性代表什么含义
+
+flex-grow：1、弹性盒的伸展比例，子元素宽度小于父元素时，剩余部分进行放大的比例
+flex-shrink: 1、弹性盒的收缩比例，子元素宽度大于父元素时，超出部分进行缩小的比例
+flex-basis: 0%、弹性盒的初始宽度，basis 和 width 同时存在时 width 无效
+
 # 22.响应式设计
 
 响应式设计是一个网站能兼容多个终端，而不是为每个终端做一个特定的版本（这是自适应）
 
 原理：通过媒体查询检测不同的设备屏幕尺寸做不同的处理
 
-# 23. 清除浮动的方式
+# 23.清除浮动的方式
 
 - 给父元素添加 height 属性
 - 给父元素添加 overflow:hidden
@@ -221,9 +240,9 @@ flex-wrap 指定换行方式
 
 ```css
 .clear::after {
-	content: "";
-	display: block;
-	clear: both;
+    content: "";
+    display: block;
+    clear: both;
 }
 ```
 
@@ -291,21 +310,19 @@ margin 重叠问题：两个相邻的兄弟元素之间的上下外边距相遇�
 优先级：
 position: absolute/fixed > float > display
 
-position: absolute/fixed 会使 float 不起作用，
-会把元素变成 inline-block，显式更改 display 也无效
-
-没有 position: absolute/fixed 时，
-float 也会把元素变成 inline-block，显式更改 display 也无效
+（作用于同一元素上时）
 
 # 29.重排(回流)和重绘的理解
 
 重排(回流)：
-更新了元素的几何属性(元素的位置和大小)，浏览器需要重新计算元素的几何属性，将其安放在正确的位置
+发生重排时，浏览器会重新计算元素的位置和大小和布局，并更新渲染树，然后将新的布局信息应用到页面的元素上，这可能会影响其他元素重新排列 （更新了元素的几何属性(元素的位置和大小)）
 
 重绘：
-更新了元素的绘制属性(元素的外观)，但没有改变布局，浏览器把元素外观重新绘制出来
+在重排之后，浏览器根据新的布局信息重新绘制页面元素，并不需要重新计算元素的布局和位置 （更新了元素的绘制属性(元素的外观)）
 
 重排必定引发重绘，重绘不一定引发重排
+
+重排涉及到布局计算、dom更新等操作，会消耗较多的计算资源
 
 # 30.获取布局信息，没有改变元素的几何属性为什么会触发重排？
 
@@ -328,27 +345,27 @@ border-left: 50px solid transparent;
 
 # 32.如何解决 1px 问题
 
-在一些手机上，移动端页面的 1px 会变得很粗，呈现出不止 1px 的效果
+在一些Retina屏幕上，移动端页面的 1px 会变得很粗，呈现出不止 1px 的效果
 因为 css 中的 1px 不等于移动设备上的 1px
-常说的二倍屏指，dpr=2，物理像素/逻辑像素 = 2，也就是每 2 个物理像素显示一个逻辑像素（一个方向上）
-`window.devicePixelRatio = 物理像素/逻辑像素`
-（设计稿中的 1px 是要物理像素的 1px，如果 2 物理像素显示 1 逻辑像素的话，1px 看起来就会像 2px）
+常说的二倍屏指，dpr=2，物理像素/逻辑像素 = 2，也就是每 2 个物理像素显示一个逻辑像素（一个方向上）。这就意味着1px的css像素，在设备上会用2个物理像素来渲染，实际看到的就会比1px粗一些
 
 解决：**利用 meta 标签里的 viewport 来解决，设置 initial-scale 的值为 1/dpr**
 
-假设 dpr=2，每 2 个物理像素显示 1 个逻辑像素，为了让 1 物理像素=1 逻辑像素，实际上就要将逻辑像素缩小为 原来的 0.5 倍，
 `initial-scale`是缩放值，缩放时元素的 css 像素数量不会变，只是 css 像素大小改变。
-比如一个元素 width:128px，原来宽度为 128 个 css 像素，也就是 128 个逻辑像素。
-缩放了 0.5 倍，宽度就变成 64 个 逻辑像素了，但依然是 128 个 css 像素
-也就是说缩放了 0.5 倍，逻辑像素也会变成原来的 0.5 倍，
+比如一个元素 width:128px，原来宽度为 128 个 css 像素，也就是 128 个逻辑像素。缩放了 0.5 倍，宽度就变成 64 个 逻辑像素了，但依然是 128 个 css 像素
+
+css像素个数 = 逻辑像素个数 / scale = (物理像素个数 / dpr) / scale 
+
+得到css像素个数 = 物理像素个数
+
 所以我们就将`initial-scale`的值设置为`1/dpr`就可以解决问题
 
 ```javascript
 const scale = 1 / window.devicePixelRatio;
 // 这里 metaEl 指的是 meta 标签对应的 Dom
 metaEl.setAttribute(
-	"content",
-	`width=device-width,user-scalable=no,initial-scale=${scale},maximum-scale=${scale},minimum-scale=${scale}`
+    "content",
+    `width=device-width,user-scalable=no,initial-scale=${scale},maximum-scale=${scale},minimum-scale=${scale}`
 );
 ```
 
