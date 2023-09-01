@@ -7,7 +7,7 @@ function objectFactory() {
   // 让构造函数的this指向新对象，调用构造函数
   let result = constructor.apply(obj, arguments)
   // 判断构造函数返回值类型，如果是引用类型就直接返回，如果是简单类型就返回新对象
-  return (typeof returnType === 'object') ? result : obj
+  return (typeof result === 'object' || typeof result === 'function') ? result : obj
 
 }
 

@@ -2,9 +2,8 @@
 function myInstanceOf(obj, constructor) {
   // 获取对象的对象原型，相当于let proto = obj.__proto__
   let proto = Object.getPrototypeOf(obj);
-  let { prototype } = constructor;
-  while(proto !== null) {
-    if(proto === prototype) {
+  while(proto) {
+    if(proto === constructor.prototype) {
       return true;
     }
     // 不断更新对象原型，往原型链后方走
@@ -12,3 +11,6 @@ function myInstanceOf(obj, constructor) {
   }
   return false;
 }
+
+console.log(myInstanceOf([], Function))
+

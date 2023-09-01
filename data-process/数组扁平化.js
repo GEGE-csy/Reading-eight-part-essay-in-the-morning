@@ -19,4 +19,6 @@ function flatten2(arr) {
   return result
 }
 
+
+
 console.log(flatten2(arr));

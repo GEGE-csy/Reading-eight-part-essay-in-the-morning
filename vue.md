@@ -1,20 +1,20 @@
 # vue基础
 
-## 1. vue 的基本原理
+## 1. vue 的响应式原理
 
-vue 实例创建时，vue 会遍历 data 中的属性，用 Object.defineProperty()（vue3 用 proxy）将它们转为 getter 和 setter，并跟踪相关依赖，在属性被访问或者修改的时候就通知变化。每个组件实例有相应的 watcher 程序，它会在组件渲染的过程中把属性标记为依赖，之后当依赖项的 setter 被调用时会通知 watcher 重新计算从而更新组件
+vue 实例创建时，vue 会遍历 data 中的属性，用 Object.defineProperty()（vue3 用 proxy）将它们转为 getter 和 setter，在属性被访问或者修改的时候就通知变化。每个组件实例有相应的 watcher 程序，它会在组件渲染的过程中把属性标记为依赖，之后当依赖项的 setter 被调用时会通知 watcher 重新计算从而更新组件
 
-## 2.vue 的双向数据绑定原理
+## 2.vue 的双向数据绑定原理 ⭕️
 
 vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现
 
 主要分为以下几个步骤：
 
-- 监听器 Observer ，通过 Object.defineProperty()或者 proxy 来劫持 data 中的属性，将它们转为 getter、setter 并监听变化，如果有变动就通知 订阅者 Watcher，因为Watcher不止一个，所以会有一个消息订阅器 Dep 收集订阅者，Dep在 Observer 和 Watcher 之间通知变化
+- 监听器 Observer ，通过 Object.defineProperty()或者 proxy 来劫持 data 中的属性，将它们转为 getter、setter 并监听变化，有变化就通知Dep消息订阅器，Dep再通知订阅者 Watcher，Watcher不止一个，消息订阅器 Dep 会收集订阅者，Dep在 Observer 和 Watcher 之间通知变化
 
-- 解析器 Compile解析模板指令，把模板中的变量替换成数据，然后初始化页面视图，给每个指令对应的节点绑定更新函数，并添加订阅者 Watcher 来监听数据，一旦收到通知就更新视图
+- 解析器 Compile 解析模板指令，初始化页面视图，给每个指令对应的节点绑定更新函数，并添加订阅者 Watcher 来监听数据，一旦收到通知就更新视图
 
-- 订阅者 Watcher 是 Observer 和 Compile 之间的一个桥梁，在自身实例化时往dep里面添加自己，自身有一个update()，当收到 Dep 的通知时，Watcher 会调用update()，并触发Compile中绑定的回调
+- 订阅者 Watcher 是 Observer 和 Compile 之间的一个桥梁，在自身实例化时往Dep里面添加自己，自身有一个update()，当收到 Dep 的通知时，Watcher 会调用update()，并触发Compile中绑定的回调
 
 ## 3.使用 Object.defineProperty()来进行数据劫持的缺点
 
@@ -34,7 +34,7 @@ Model 代表数据模型，View 代表 UI 视图，ViewModel 负责监听 Model 
 Model 中的数据会绑定到 ViewModel，当数据改变时会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改
 以前是操作 DOM 更新视图，现在是数据驱动视图
 
-## MVVM的优缺点
+## MVVM的优缺点 ⭕️
 
 优点：
 
@@ -50,7 +50,7 @@ Model 中的数据会绑定到 ViewModel，当数据改变时会触发 View 的�
 
 - mvvm的数据绑定机制在处理大规模数据或频繁变动的数据可能会引起性能开销
 
-## 5. MVVM、MVC、MVP 的区别
+## 5. MVVM、MVC、MVP 的区别 ⭕️
 
 MVVM、MVC、MVP 是三种常见的架构模式，都是为了解决 UI 界面和逻辑代码分离而出现的模式
 
@@ -131,18 +131,19 @@ slot 就是插槽，一个标签元素
 
 ## 9.v-model 如何实现
 
-v-model 就是一个语法糖
+v-model 就是一个语法糖，用来在表单元素和组件之间建立双向数据绑定
 比如 v-model="a"
 
 1. 用 v-bind 绑定 value 属性，值是 a
-2. 绑定 input 事件，触发 input 事件的时候将 a 设置为目标值
+2. 使用 v-on 监听 input 事件，触发事件的时候会更新绑定的属性值
+3. 
 
 ## 10.data 为什么是一个函数而不是对象
 
 一个组件可能会被复用多次，如果 data 是一个对象，那么会有多个组件实例引用同一个对象，只要一个实例操作了 data，其他实例的 data 也会变化
 所以 data 要写成函数的形式，数据以函数返回值的形式定义，有自己的作用域，各个组件之间不会相互干扰
 
-## 11.对 keep-alive 的理解
+## 11.对 keep-alive 的理解 ⭕️
 
 keep-alive 是 vue 的一个内置组件
 它能在组件切换的时候保存组件状态，而不是直接销毁组件，避免反复渲染导致的性能问题
@@ -158,7 +159,7 @@ keep-alive默认使用LRU缓存策略，当缓存达到最大限制时，会自�
 原理：
 vue 内部将 DOM 节点抽象成了一个个的虚拟节点，keep-alive 的缓存也是基于虚拟节点的，不是直接存储 DOM 结构，它将需要缓存的组件存在 cache 对象中，需要渲染时再将虚拟节点从 cache 对象中取出并渲染
 
-## 12.nextTick原理及作用
+## 12.nextTick原理及作用 ⭕️
 
 `nextTick`是 vue 提供的一个 api，可以在`nextTick`里获取更新后的 DOM
 vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个队列，并缓冲在同一事件循环中发生的所有数据变更，这是为了去除重复的不必要的dom操作和计算。然后在下一个事件循环中，vue才会执行工作。调用nextTick()，传入的回调函数会被添加到这个队列中，因此可以保证nextTick()中能拿到最新的dom结构
@@ -168,13 +169,13 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 - 在修改数据后，立刻就想操作这个跟着数据变化的 DOM 结构，这个操作就要放在`nextTick`里
 - 在`created()`生命周期进行 DOM 操作，也要放在`nextTick`里
 
-## 13.单页应用和多页应用的区别
+## 13.单页应用和多页应用的区别 ⭕️
 
 单页应用 SPA：
 
-- 只有一个主页面的应用，一开始只需要加载一次 js、css 等资源
+- 只有一个主页面的应用，只需要初始加载一次 js、css 等资源
 
-- 跳转页面就是切换相关的组件，只会刷新局部资源
+- 跳转页面只会刷新局部资源
 
 - 适用场景：对体验度和流畅度较高的应用，不利于 SEO
 
@@ -223,7 +224,7 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 - 新定义一个 data，初始化为 prop 值
 - 新定义一个计算属性，处理 prop 值
 
-## vue是如何收集依赖的
+## vue是如何收集依赖的 ⭕️
 
 vue实例化时，会调用`initState()`初始化实例，其中对data的响应式处理，会调用`observe()`，`observe()`中会初始化一个`Observer`实例，并传入需要做响应式的对象，
 
@@ -318,7 +319,7 @@ export default class Watcher {
 - 双向数据绑定，数据和视图会同步变化，不需要我们去操作 DOM 更新视图
 - 组件化开发，将页面拆成一个个可复用的组件，便于管理代码
 
-## 20. assets 和 static
+## 19. assets 和 static
 
 相同：都是存放静态资源文件
 不同：assets 中的资源会在构建过程中被打包压缩优化
@@ -326,7 +327,7 @@ static 中的资源不会被打包压缩优化
 
 建议：自己的静态资源放在 assets 中，第三方资源放在 static 中
 
-## 什么是mixin？
+## 20. 什么是mixin？
 
 如果希望在多个组件之间复用一套组件选项，例如生命周期、方法、data等，就可以把它编写成mixin，然后在组件中使用mixin选项混入，mixin中的内容会合并到组件中
 
@@ -354,7 +355,7 @@ ssr 就是服务端渲染
 - 服务端压力较大
 - 开发和部署难度变大
 
-## 22.vue 的性能优化有哪些
+## 22.vue 的性能优化有哪些 ⭕️
 
 代码层面：
 
@@ -377,7 +378,7 @@ SEO层面：
 
 - 压缩代码
 - tree shaking/scope hoisting【移除未使用的代码/合并模块间的代码作用域】
-- happypack多线程打包【将任务拆分成多个子线程并行处理，加快打包速度】
+- thread-loader多线程打包【将任务拆分成多个子线程并行处理，加快打包速度】
 - splitChunks抽离公共代码
 
 用户体验：
@@ -386,7 +387,32 @@ SEO层面：
 - 开启 gzip 压缩
 - 使用缓存优化
 
-## 对SPA的理解，它的优缺点分别是什么？
+## 官网总结的vue相关的性能优化
+
+（和vue相关）
+
+web应用性能的两个主要方面：
+
+- 页面加载性能：首次访问时应用展示出内容的速度
+  
+  1. 选用正确的架构：SSR或SSG(静态站点生成)
+  
+  2. 减小打包体积：充分利用构建工具提供的功能和优化选项
+     
+     压缩代码、tree-shaking、代码分割
+
+- 更新性能：应用响应用户输入更新的速度
+  
+  1. props稳定性：传给子组件的props尽可能稳定
+  2. v-once：仅渲染元素和组件一次，跳过之后更新
+  3. v-memo：绑定一个数组，如果数组中元素没变，就跳过该元素的更新
+
+- 通用优化：同时改善页面加载性能和更新性能
+  
+  1. 大型列表-使用虚拟列表
+  2. 减少深层不可变数据的响应性开销-
+
+## 对SPA的理解，它的优缺点分别是什么？⭕️
 
 只有一个主页面的应用，它在加载完初始页面后，只会动态更新页面内容，不会重新加载整个页面
 
@@ -466,10 +492,15 @@ vue 实例创建时会经过一系列初始化过程
 3. 子组件 destroyed
 4. 父组件 destroyed
 
-## 3. created 和 mounted 的区别
+## 3. 数据请求created 和 mounted 的区别
 
-created()在模板挂载到页面 之前调用，无法访问 DOM
-mounted()在模板挂载到页面 之后调用，可以访问 DOM
+created()在组件实例创建完成时立刻调用
+
+mounted()在页面节点渲染完后立刻执行
+
+放在mounted中的请求有可能导致页面闪动，因为此时页面dom结构已经生成
+
+（如果网络请求很耗时，而请求的数据又用于页面的渲染，那么页面可能会在数据到达之前先渲染出来，然后再进行更新，导致页面闪动。）
 
 # 组件通信
 
@@ -527,7 +558,7 @@ mounted()在模板挂载到页面 之后调用，可以访问 DOM
    const List = resolve => require.ensure([], () => resolve(require('@/components/list')), 'list');
    ```
 
-## 2. 路由的hash和history模式的区别
+## 2. 路由的hash和history模式的区别 ⭕️
 
 hash模式：
 
@@ -586,7 +617,7 @@ $router是全局的路由实例对象，包含路由跳转方法、钩子函数�
 
 使用params传参必须用name配置项，不能用path配置项，query都可以
 
-## 7. 导航守卫
+## 7. 导航守卫 ⭕️
 
 导航守卫--路由跳转过程中的钩子函数
 
@@ -620,13 +651,13 @@ $router是全局的路由实例对象，包含路由跳转方法、钩子函数�
    
    - beforeRouteLeave离开组件时触发
 
-## 8. 对前端路由的理解
+## 8. 对前端路由的理解 ⭕️
 
 前端路由是在单页面应用中管理导航和页面切换的，在单页面应用中，页面切换前后的url都是一样的，没有办法判断当前页面到了哪一步，并且前进多步得到的内容刷新一下就会消失，没有办法对内容定位。前端路由可以给SPA每一个视图匹配一个标识，每个视图都会映射到不同的url，url可以定位，这样刷新内容也不会消失
 
 # vuex
 
-## 1. Vuex的原理
+## 1. Vuex的原理 ⭕️
 
 vuex是一种状态管理模式
 
@@ -680,7 +711,7 @@ Vuex的几大属性：
 
 - modules：模块化vuex，每个模块都有自己的state、getters、mutations、actions
 
-## 5. 为什么要用Vuex？
+## 5. 为什么要用Vuex？⭕️
 
 我们使用vuex可以解决一些问题：
 
@@ -700,8 +731,6 @@ vuex能帮助我们更好的组织和管理一些全局的状态，提供了一�
 
 - vuex可以做到数据响应式，localStorage不能
 
-
-
 ## 7. 如何在组件中批量使用Vuex的getter和mutation
 
 ```js
@@ -719,19 +748,40 @@ export default {
 
 # vue3.0
 
-## 1. vue3 有什么更新
+## 1. vue3 有什么更新 ⭕️
 
 - 使用 proxy 实现数据监听，可以监听到任何形式的数据改变，没有 Object.defineProperty 的很多限制
 - composition 组合式 api
   vue2 中的 options，一个功能被分割到了 data、methods、computed 里，导致耦合度高难维护，vue3 的组合式 api 会把一个功能的代码放一起
-- 重写虚拟 DOM
-  优化了虚拟 DOM 的 diff 算法，之前需要比较每一个节点是否变化，vue3 中则只会跟踪被标记了的节点，不会管静态节点
+- 优化了虚拟 DOM 的 diff 算法，对新旧虚拟节点进行类型比较，还可以跳过不同类型的节点的比较，还引入了静态树提升，能将静态子树缓存起来，避免重复的比较
 - 生命周期钩子，去掉了 beforeCreate 和 created，增加了 setup，beforeDestroy 和 destroyed 也改名为 onBeforeUnmount 和 onUnmounted，并且所有的钩子都要放在 setup 里
 - 基于 tree-shaking 摇树优化，重构了一些 api，减小了代码量（比如 vue2 中的 Vue. nextTick 没有用到也会打包进来，vue3 就是只有引入进来的会打包）
 - 新的组件 Fragment、Teleport、Suspense
   - Fragment，在 vue3 中组件可以没有根标签，内部会将多个标签包在一个 Fragment 中
   - Teleport 可以包裹 html 传送到指定地方
   - Suspense 展示异步组件
+
+## 2. 为什么要有组合式api
+
+- 更好的逻辑复用
+  
+  通过组合式函数(hook)来实现更简洁的逻辑复用，在options api中我们主要的逻辑复用机制是mixins，mixins缺陷：1.不知道数据来自哪个mixin 2.不同的mixin可能使用相同的属性名造成命名冲突 
+
+- 更灵活的代码组织
+  
+  options api将一个功能被分割到了 data、methods、computed 里，导致耦合度高难维护，大型项目中会分散我们的逻辑关注点，vue3 的组合式 api 会把一个功能的代码放一起
+
+- 更好的类型推导
+  
+  options api的类型推导不是很理想，组合式api可以享受到完整的类型推导
+
+## 3. 说一说你对hooks的理解
+
+其实就是函数，将一些单独功能的代码抽离出来复用
+
+vue2中options api我们主要的逻辑复用方式是mixins混入，但mixins有缺陷1.不知道数据来自哪个mixin 2.不同的mixin可能使用相同的属性名造成命名冲突
+
+vue3中组合式api能更方便我们去封装hooks来实现逻辑复用
 
 # 虚拟DOM
 
@@ -742,7 +792,7 @@ export default {
 - 使用虚拟 DOM 可以减少直接操作真实 DOM 的次数，利用 diff 算法比较新旧虚拟 DOM，只更新变化的部分，不会引起频繁的重排和重绘
 - 缺点是首次渲染 DOM 的时候多了一层虚拟 DOM 的计算，速度比正常稍慢
 
-## 2. 虚拟dom的解析过程
+## 2. 虚拟dom的解析过程 ⭕️
 
 首先对将要插入到文档中的dom树结构进行分析，用js对象将其表示出来，然后保存js对象树，最后将dom树插入到文档中
 
@@ -764,7 +814,7 @@ export default {
    
    虚拟dom本质是js对象，方便跨平台操作
 
-## 4. diff 算法的原理
+## 4. diff 算法的原理 ⭕️
 
 简单来说就是对着虚拟 DOM 树从上到下进行同层对比
 
@@ -823,3 +873,77 @@ export default {
 vue 支持所有兼容 es5 的浏览器，ie8 及以下浏览器均不支持 vue
 vue 实例初始化时会遍历 data 中的所有属性，并使用 Object.defineProperty 把这些属性全部转为 getter/setter
 Object.defineProperty 没办法用低级浏览器中的方法实现，所以 vue 不支持
+
+# 运行时渲染器和编译时渲染器
+
+- 运行时渲染器(runtime-only)
+  
+  不包含模板编译器
+  
+  render函数将数据对象渲染成dom
+  
+  数据格式限制：
+  
+  ```js
+  const obj = {
+      tag: 'div',
+      children: [
+          { tag: 'span', children: 'hello world'}
+      ]
+  }
+  ```
+
+- 编译时渲染器(runtime+compiler)
+  
+  包含了模板编译器compiler
+  
+  comiler将template编译成数据对象👆，再交给render函数将数据对象渲染成dom
+
+纯编译时框架svelte 
+
+vue是一个运行时+编译时框架，（运行时编译），既支持运行时(用户直接提供数据对象无需编译)，又支持编译时(用户提供模板)
+
+# vue 渲染管线
+
+```json
+         compile           return                mount/patch
+template --------> render --------> virtual dom -------------> actual dom
+                     ｜
+                  👆     👇
+   trigger re-render    track dependency
+       触发重新渲染           跟踪依赖
+                     ｜
+            component reactive state
+                （组件响应式状态）                     
+```
+
+1. 编译 
+   
+   vue模板编译成render函数，这个步骤可以项目构建时就编译好 / 程序运行再编译(性能开销大)
+
+2. 挂载
+   
+   运行时渲染器调用render函数，（render函数会返回虚拟dom）遍历虚拟dom树，基于虚拟dom树创建实际的dom节点
+
+3. 更新
+   
+   当有依赖发生变化时，会创建一个更新后的虚拟dom树，运行时渲染器遍历新树，将它与旧树进行比较，然后将必要的更新应用到真实dom上
+
+# 模板vs渲染函数
+
+render函数更灵活，适合处理高度动态渲染逻辑
+
+vue默认推荐使用模板
+
+1. 使用模板更方便复用html片段
+2. vue的模板编译器能应用编译时优化来提升虚拟dom的性能
+
+# 浏览器更新渲染时机
+
+浏览器更新渲染会在事件循环中的宏任务和微任务完成后进行
+
+vue为什么要优先使用微任务实现nextTick？
+
+优先使用微任务实现，本次事件循环就能获得更新的dom
+
+如果使用宏任务，要等到下一次才能获得更新的dom

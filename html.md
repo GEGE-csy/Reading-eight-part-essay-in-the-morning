@@ -26,7 +26,7 @@
 - CSS1Compat：标准模式，默认模式，浏览器以其支持的最高标准呈现页面
 - BackCompat：怪异模式，页面以一种比较宽松的向后兼容的方式显示
 
-# script 标签中 defer 和 async 的区别
+# script 标签中 defer 和 async 的区别 ⭕️
 
 defer 和 async 都是异步加载外部的 js 文件，
 如果没有 defer 和 async 属性，浏览器读到脚本就会立刻加载和执行，这样会阻塞后面 html 的解析
@@ -70,7 +70,7 @@ srcset 可以指定图片的地址和对应的图片质量
 没有闭合标签的元素
 br hr img
 
-# 说一下 web worker
+# 说一下 web worker ⭕️
 
 web worker 可以给 js 创造多线程运行环境
 主线程可以创建 worker 线程，分配任务给 worker 线程，主线程执行的同时 worker 线程也在执行，互不干扰
@@ -84,7 +84,7 @@ worker 线程执行结束后把结果返回给主线程
 指定了 manifest 属性的页面在用户访问时会被缓存，
 manifest 文件的扩展名是`.appcache`
 
-# iframe 有哪些优点和缺点？
+# iframe 有哪些优点和缺点？⭕️
 
 iframe 可以用来在一个网页里嵌入别的网页
 优点：

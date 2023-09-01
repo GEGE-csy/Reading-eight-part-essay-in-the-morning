@@ -15,6 +15,7 @@ function jsonToTree(data) {
       tree.push(item)
     }
   })
+  return tree
 }
 const data = [{
   id: 1,
@@ -45,4 +46,23 @@ const data = [{
 //   }
 // }]
 
+function jsonToTree(data) {
+  let map = new Map()
+  let tree = []
+  data.forEach(item => {
+    map.set(item.id, item)
+  })
+  data.forEach(item => {
+    let parent = map.get(item.pid)
+    if(parent) {
+      if(!parent.children) {
+        parent.children = []
+      } 
+      parent.children.push(item)
+    } else {
+      tree.push(item)
+    }
+  })
+  return tree
+}
 console.log(jsonToTree(data))
