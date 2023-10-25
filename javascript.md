@@ -304,13 +304,13 @@ Object.prototype.toString.call( [1,2,3] );
 
 1. 值属性，undefined null NaN
 
-2. 函数属性，parseInt 
+2. 函数属性，parseInt parseFloat 
 
-3. 数字和日期对象，Math Date
+3. 基本对象，Object Function Symbol
 
-4. 基本对象，Object Function Error
+4. 错误对象，Error ReferenceError TypeError
 
-5. 操作字符串，String RegExp
+5. 数字和日期对象，Number Math Date
 
 # es6
 
@@ -352,18 +352,22 @@ const 保证的其实是**变量指向的内存地址所保存的数据**不能�
 
 ## 4.扩展运算符的作用
 
-- 对象的扩展运算符
-  用于取出对象中的属性，拷贝到另一个对象中
+- 对对象
+  取出对象中的属性，拷贝到另一个对象中
 
-- 数组的扩展运算符
+- 对数组
   
   - 将数组转成参数序列
   - 复制数组
   - 合并数组
 
+- 对字符串
+  
+  - 字符串分割成字符数组
+
 ## 5.Proxy
 
-Proxy用来创建一个代理对象，可以拦截并自定义目标对象的操作
+Proxy用来创建一个代理对象，可以拦截一个对象，并自定义对它的操作
 
 `let proxy = new Proxy(target, handler)`
 
@@ -655,12 +659,12 @@ axios 是一个库，使用 promise 对 XMLHttpRequest 进行了封装
 
 - AMD是异步加载，主要用于浏览器，cjs主要用于服务器
 
-- UMD是AMD和cjs的糅合，会先判断支持nodejs模块的模块是否存在，存在则使用nodejs模块，再判断是否支持AMD
+- UMD可以适应多种环境，会检测当前的执行环境，然后根据环境来选择使用哪种模块系统
 
 ## 22. Object.create()和 new Object()的区别
 
 - new Object()继承内置对象 Object，Object.create()继承指定的对象
-- Object.create(null)会创建一个没有原型的对象，new Object()创建的对象的原型指向 Object.prototype
+- Object.create(null)创建的对象没有原型，new Object(null)创建的对象的原型指向 Object.prototype
 
 ## 23. 赋值、浅拷贝、深拷贝
 
@@ -707,6 +711,17 @@ console.log(obj1.name, obj2.name, obj1.age[0], obj2.age[0]);
 
 深拷贝：
 新对象属性改变，原对象不会变
+
+```js
+function deepClone(obj) {
+  let newObj = Array.isArray(obj) ? [] : {}
+  for(let key in obj) {
+    if(obj.hasOwnProperty(key)) {
+      newObj[key] = typeof obj[key] === 'object' ? deepClone(obj[key]) : obj[key]
+    }
+  }
+}
+```
 
 ## 24. 实现浅拷贝、深拷贝的方法
 
@@ -1131,27 +1146,25 @@ requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的�
 
 ## 1. 对象创建的方式有哪些 ⭕️
 
-1. 工厂模式
-   
-   使用工厂函数创建对象，工厂函数封装了创建对象的细节
+1. 对象字面量  const obj = {}
 
-2. 构造函数模式
-   
-   相较于工厂函数，创建的对象和构造函数建立了联系，可以通过原型来识别对象的类型
-   
-   缺点：构造函数中定义的函数方法会在每个实例上都创建一次，造成了不必要的函数创建
+2. 构造函数 new实例对象
 
-3. 原型模式
+3. 类 new实例对象
 
-   使用原型来添加公用的方法，从而实现代码的复用
-
-4. 组合使用构造函数模式+原型模式
+4. 工厂函数 
    
-   通过构造函数初始化对象的属性，通过原型来定义共享的方法
+   ```js
+   function createPerson(name, age) {
+       return {
+           name,
+           age,
+       }
+   }
+   const p = createPerson('poem', 20)
+   ```
 
-5. 动态原型模式
-   
-   将原型方法的赋值移到了构造函数内，相比👆一种代码封装性更好
+5. Object.create()
 
 ## 2. 继承 ⭕️
 

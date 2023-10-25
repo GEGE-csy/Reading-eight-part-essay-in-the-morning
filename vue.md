@@ -16,6 +16,8 @@ vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现
 
 - 订阅者 Watcher 是 Observer 和 Compile 之间的一个桥梁，在自身实例化时往Dep里面添加自己，自身有一个update()，当收到 Dep 的通知时，Watcher 会调用update()，并触发Compile中绑定的回调
 
+Observer通过 Object.defineProperty()或者 proxy 来劫持 data 中的属性，将它们转为 getter、setter 并监听变化，有变化就通知订阅者watcher。Compile解析模板指令，给指令对应节点绑定更新函数，并添加watcher监听数据，当watcher收到observer的通知，就触发compile中绑定的回调更新视图
+
 ## 3.使用 Object.defineProperty()来进行数据劫持的缺点
 
 - 对象属性的增加删除无法监听到
@@ -108,15 +110,15 @@ slot 就是插槽，一个标签元素
 插槽分三类：匿名插槽、具名插槽、作用域插槽
 匿名插槽：slot 不指定 name 属性，默认名字 default，一个组件只能有一个匿名插槽
 具名插槽：slot 指定了 name 属性，一个组件可以有多个具名插槽
-作用域插槽：子组件可以将内部数据传递给父组件
+作用域插槽：因为插槽内容是在父组件的模板中被定义的，所以只能访问父组件的作用域，不能访问子组件的作用域，所以如果插槽内容需要子组件的数据，子组件可以将数据传递给父组件
 
 【子组件将数据作为一个属性绑定在 slot 元素上，比如`<slot :childData="data"></slot>`
-父组件中使用 v-slot 来获取数据】
+父组件中使用 v-slot(#)来获取数据】
 
 ```html
 <!-- Father.vue -->
 <child>
-    <template v-slot:default="slotProps"> {{ slotProps.childData }} </template>
+    <template #default="slotProps"> {{ slotProps.childData }} </template>
 </child>
 ```
 
@@ -132,11 +134,14 @@ slot 就是插槽，一个标签元素
 ## 9.v-model 如何实现
 
 v-model 就是一个语法糖，用来在表单元素和组件之间建立双向数据绑定
-比如 v-model="a"
+比如 v-model="a"，如果用在表单元素上，
 
 1. 用 v-bind 绑定 value 属性，值是 a
 2. 使用 v-on 监听 input 事件，触发事件的时候会更新绑定的属性值
-3. 
+
+如果用在自定义组件上，实际上组件内部要实现
+
+v-bind绑定modelValue属性，并且触发事件的时候emit('update:modelValue')并发送
 
 ## 10.data 为什么是一个函数而不是对象
 
@@ -524,7 +529,11 @@ mounted()在页面节点渲染完后立刻执行
 
 - attr透传
 
-   父组件传递给子组件的非props属性自动透传给子组件，子组件可以通过attr拿到   
+   父组件传递给子组件的非props属性自动透传给子组件，子组件可以通过attr拿到
+
+- 作用域插槽
+  
+  子组件通过<slot>给父组件传递数据    
 
 兄弟：
 
