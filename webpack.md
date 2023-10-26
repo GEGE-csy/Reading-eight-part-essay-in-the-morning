@@ -1,13 +1,13 @@
 # 对 webpack 的理解
 
-webpack 是模块打包工具，可以使用webpack管理模块，分析模块之间的依赖关系，最终编译输出一个静态文件
+webpack 是模块打包工具，可以使用webpack管理模块，它通过分析模块之间的依赖关系，经历一系列构建流程，最终输出一个静态文件
 
-webpack利用loader可以处理各种类型的资源，还提供了很多plugin来优化构建过程
+在构建流程中webpack利用loader可以处理各种类型的资源，还提供了很多plugin来优化构建过程
 
 # bundle、chunk、module 分别是什么
 
 bundle：打包生成的输出文件
-chunk： webpack打包的时候，会根据文件引用关系（从入口开始，逐个打包）逐个打包module，这些module就形成了一个chunk
+chunk： webpack打包的时候，会根据文件引用关系调用loader逐个翻译module，这些module就形成了一个chunk
 
 【如果有多个入口文件，会有多条打包路径，一个路径形成一个chunk】
 module：模块，一个模块对应一个文件
@@ -108,11 +108,15 @@ plugin
 
 这个机制可以做到不用刷新浏览器而将新模块替换旧模块
 
-热更新的核心是客户端从服务端拉取chunk diff(chunk需要更新的部分)，webpack-dev-server和浏览器之间维护了一个websocket，当本地资源发生变化的时候，dev server会向浏览器推送更新，并带上构建时的hash，让客户端和上一次资源对比，对比出差异后会向dev server发起请求获取更新内容
+webpack-dev-server和浏览器之间维护了一个websocket，当本地资源发生变化的时候，dev server会向浏览器推送更新，并带上构建时的hash，让客户端和上一次资源对比，对比出差异后会向dev server发起请求获取更新内容
 
 # 说下tree-shaking的原理 ⭕️
 
-静态分析js模块的依赖关系，收集导出变量并记录到依赖图，遍历依赖图，标记没有使用过的导出变量，删除有标记的导出变量
+静态分析模块的依赖关系，构建模块之间的依赖树。
+
+标记所有未引用的代码
+
+从输出文件中删除未引用的代码
 
 # babel 的原理
 
@@ -141,8 +145,13 @@ babel 的编译过程分为 3 个阶段：
 
 commonjs(CJS)、es modules(ESM)、AMD、UMD
 
-- cjs的require是同步加载，esm的import是异步加载
+- cjs是同步加载，esm是异步加载
+
 - cjs导出的是值的拷贝，esm导出的是值的引用
+
+- AMD是异步加载，主要用于浏览器，cjs主要用于服务器
+
+- UMD可以适应多种环境，会检测当前的执行环境，然后根据环境来选择使用哪种模块系统
 
 # 脚手架具体做了哪些事？
 
@@ -208,21 +217,58 @@ commonjs(CJS)、es modules(ESM)、AMD、UMD
 
 # webpack proxy为什么可以解决跨域？
 
+开发阶段，webpack-dev-server会启动一个本地开发服务器，我们的应用运行在localhost的一个端口上，而后端服务运行在另一个地址，由于浏览器同源策略会出现跨域问题
 
+设置webpack proxy相当于浏览器和服务端中间添加一个代理者，本地发送请求，代理服务器响应请求，并将请求转发到目标服务器，目标服务器响应后将数据发送到代理服务器，再转到本地
+
+代理服务器和本地浏览器是同源的不会跨域，而代理服务器和目标服务器都是服务器也不会受浏览器的同源策略影响
+
+# 手写一个loader
+
+比如style-loader（将解析后的css注入页面）
+
+```js
+// loader/style-loader.js
+function loader(source) {
+    return `
+        let style = document.createElement('style');
+        style.setAttribute('type', 'text/css');
+        style.inndexHTML = ${source};
+        document.head.appendChild(style)`
+}
+module.exports = loader
+```
+
+在webpack.config.js中：
+
+```js
+module.exports = {
+    module: {
+        rules: [
+            {
+                test: /main.css/,
+                use: [{ loader: './loader/style-loader.js' }]
+            }
+        ]
+    }
+}
+```
 
 # Webpack的hash值？（文件指纹）
 
+hash值通常指构建生成的文件名中包含的哈希值，每次构建webpack都会生成一个唯一的hash值，这样保证代码变化的时候浏览器重新下载文件
+
 - hash
   
-  任何一个文件改变，整个项目的的构建hash值变化
+  构建过程中生成的全局哈希值，任何一个文件改变，整个项目的hash值变化
 
 - chunk hash
   
-  文件的改动只会影响其所在chunk的hash值
+  每个独立的chunk都有自己的hash值，一个chunk的改动不会影响其他chunk
 
 - content hash
   
-  文件的改动只会影响自身的hash值
+  根据文件内容生成的hash值，文件内容变化才会影响hash值
 
 # gulp、grant和webpack的区别
 
