@@ -75,7 +75,6 @@ MVVM、MVC、MVP 是三种常见的架构模式，都是为了解决 UI 界面�
   Model-View-ViewModel
   Model 代表数据模型，View 代表 UI 视图，
   ViewModel 负责监听 Model 中数据的改变并控制 View 视图的更新
-  Model 和 View 没有直接联系，只能通过 ViewModel 联系
   Model 数据改变会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改，
   相较于 MVP 采用了数据双向绑定，实现了 Model 和 View 的数据自动同步
 
@@ -133,7 +132,7 @@ slot 就是插槽，一个标签元素
 
 ## 9.v-model 如何实现
 
-v-model 就是一个语法糖，用来在表单元素和组件之间建立双向数据绑定
+v-model 就是一个语法糖，用来建立双向数据绑定
 比如 v-model="a"，如果用在表单元素上，
 
 1. 用 v-bind 绑定 value 属性，值是 a
@@ -770,7 +769,7 @@ export default {
   - Teleport 可以包裹 html 传送到指定地方
   - Suspense 展示异步组件
 
-## 2. 为什么要有组合式api
+## 2. 为什么要有组合式api ⭕️
 
 - 更好的逻辑复用
   
@@ -784,7 +783,7 @@ export default {
   
   options api的类型推导不是很理想，组合式api可以享受到完整的类型推导
 
-## 3. 说一说你对hooks的理解
+## 3. 说一说你对hooks的理解 ⭕️
 
 其实就是函数，将一些单独功能的代码抽离出来复用
 
