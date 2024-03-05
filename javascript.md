@@ -10,9 +10,14 @@
 - BigInt 和 Symbol 都是通过函数创建的
 - Symbol 表示一个独一无二的值，它可以用作对象属性名，避免对象属性名冲突
 - BigInt 是一种数字类型，一般用于存储和操作大整数，如果某个数超出了 Number 能表示的安全整数范围，就可以使用 BigInt 来操作
-  (Number 表示-2^53 ~ 2^53)
+
+## js的安全整数范围
+
+安全整数：（-2^53+1 ~ 2^53-1)
 
 ## 3.原始类型和引用类型的理解？
+
+最大的区别：存储位置不同
 
 - 原始类型是存储在栈中的简单数据段，占据空间小，大小固定。
 
@@ -20,20 +25,29 @@
   引用类型在栈中存储的是对象在堆中的引用地址
   访问引用类型时，会先检索在栈中的地址，再根据地址找到堆中的实体
 
+## 堆和栈的区别，联系
+
+数据结构中：栈是一种先进后出的数据结构，堆是一个优先级队列，通常用完全二叉树实现
+操作系统中：内存分为栈区和堆区。栈区内存由编译器自动分配释放，堆区内存一般由程序员分配释放
+
 ## 4.数据类型检测的方式有哪些 ⭕️
 
-1. typeof：能判断所有的基本类型和函数
-   不能准确判断 null、对象、数组（都会返回 object）
+1. typeof：能判断所有的基本类型
+   不能准确判断引用类型，除了function 其他都会返回object
 
 2. instanceof：能判断引用类型，不能判断基本类型(包装过的话可以,new String('123')这种)
    [] instanceof Array
    内部运行机制是判断该构造函数(右)的原型对象在不在实例对象(左)的原型链上
 
-3. constructor：可以判断基本类型和引用类型，（每个对象都会有的 constructor 属性，同样也是一个指针，指向了构造函数本身
+3. constructor：可以基本类型和引用类型（null undefined Symbol BigInt除外）
+   
+   （每个对象都会有的 constructor 属性，指向了构造函数本身）
+   
+   （数字，字符串本身没有属性，但访问其属性时js会使用Number()转成包装类型）
    (2).constructor === Number
    [].constructor === Array
 
-4. Object.prototype.toString.call()
+4. Object.prototype.toString.call()：可以检测所有类型
    Object.prototype.toString.call(123) // ”[object Number]”
    Object.prototype.toString.call([]) // ”[object Array]”
    
@@ -139,6 +153,12 @@ console.log(newObj); // { inObj: { a: 2, b: 2 } }
 // 原对象也跟着改变
 console.log(obj); // { inObj: { a: 2, b: 2 } }
 ```
+
+## 强制类型转换和隐式类型转换
+
+强制类型转换一般是使用了js函数转换
+
+隐式类型转换一般是自动转换
 
 ## 14.js 中的隐式类型转换
 
@@ -312,6 +332,16 @@ Object.prototype.toString.call( [1,2,3] );
 
 5. 数字和日期对象，Number Math Date
 
+## js中如何判断两个对象是否相等
+
+1. 通过JSON.stringify()
+   
+   对象中的key顺序不同时会出错
+
+2. lodash中的isEqual()
+
+3. 遍历获取键名，比对键名数组长度和键名对应的键值，如果键值是对象递归比较
+
 # es6
 
 ## 1. let、const、var 的区别
@@ -375,9 +405,9 @@ target代表需要添加代理的对象，handler用来自定义目标对象的�
 
 **应用场景**：
 
-数据校验：拦截对象的get和set，校验是否合法
+数据校验：设置属性时，拦截set，校验是否合法
 
-延迟计算：访问某个属性时在get中检查缓存中是否有值，如果有就不计算
+惰性计算：访问属性时在get中检查缓存中是否有值，如果有就不计算
 
 权限控制：拦截get，判断权限
 
@@ -398,6 +428,28 @@ multiple(1, 2, 3, 4);
 可以用来获取函数的多余参数，用来**处理函数参数个数不确定**的情况
 
 # javascript基础
+
+## js预编译(做输出题用到)
+
+js中预编译一般有两种：全局的预编译和函数的预编译
+
+- 函数预编译：
+  
+  - 创建AO对象
+  
+  - 形参和变量声明作为AO的属性名，值赋予undefined
+  
+  - 将实参的值赋给形参
+  
+  - 找函数声明，函数名作为AO属性名，值赋予函数体（覆盖前面的变量声明和形参）
+
+- 全局预编译：
+  
+  - 创建GO对象
+  
+  - 找变量声明作为GO的属性名，如果window对象上存在这个变量，则跳过这一步。否则值赋予undefined
+  
+  - 找函数声明作为GO的属性名，如果window对象上存在，则跳过这一步。否则值赋予函数体（覆盖前面的变量声明）
 
 ## 1. new 操作符的执行过程 ⭕️
 
@@ -428,6 +480,18 @@ function objFactory() {
 objFactory(构造函数, 初始化参数);
 ```
 
+## forEach和for循环的区别
+
+- forEach不支持break、return跳出，可以使用trycatch，抛出错误中断
+
+- forEach中的index无法控制，只能增大，删除元素也无法重置index
+
+- forEach无法控制循环起点，只能从0开始
+
+- for循环没有额外的函数调用栈和上下文，性能比forEach好
+  
+  【性能：for循环>forEach>map，map会创建新数组，带来更大的性能开销】
+
 ## 2. map 和 object 的区别
 
 - 键的类型
@@ -443,8 +507,8 @@ objFactory(构造函数, 初始化参数);
   object 的键值对个数只能手动计算
 
 - 是否可迭代
-  map 可迭代
-  object 需要获取它的键才能迭代
+  map 可迭代，实现了Iterable接口
+  object 没有实现Iterable接口，可以用Object.entries()、Object.keys()、Object.values() 获取它的键值对/键/值，才能迭代
 
 - 性能
   map 频繁增删键值对时性能更好
@@ -466,8 +530,7 @@ map 提供了三个遍历器生成函数和一个遍历方法：
 ## 4. map 和 weakMap 的区别
 
 - map 可以任意类型作为 key，weakMap 只接受对象作为 key
-- weakMap 的键名引用的对象都是弱引用，不会被垃圾回收
-  （垃圾回收机制：创建变量的时候自动分配了内存，不使用变量时内存会自动释放）
+- weakMap 的键名引用的对象都是弱引用，不计入垃圾回收机制（该对象要被垃圾回收时这个引用不会阻止垃圾回收）
 
 ## 5. 对 json 的理解
 
@@ -477,6 +540,8 @@ json 是一种数据格式，经常使用 json 作为前后端数据交换的方
 
 - JSON.stringify()：JSON 对象转为 JSON 字符串
 - JSON.parse()：JSON 字符串转为 JSON 对象
+
+JSON对象和js对象不一样，JSON中对象格式更严格，比如属性值不能是函数
 
 ## 6. js 脚本延迟加载的方式？
 
@@ -563,10 +628,16 @@ ajax 是一种技术，能够和服务器交换数据并更新网页的部分内
 实现一个 ajax 请求：
 
 - new 一个 XMLHttpRequest 对象
-- 调用对象的 `open()`方法，传递参数设置请求类型，请求地址
+
+- 调用对象的 `open()`方法，传递参数设置请求类型，请求地址，是否异步(默认异步)
+
 - 调用对象的`setRequestHeader()`为对象添加头信息
+
 - 给对象添加状态监听函数，XMLHttpRequest 对象有 5 个状态，状态改变的时候会触发 onreadystatechange 事件
+  
+  【0未open 1已open 2send已调用，接收到响应头 3响应体部分接收 4响应体完全接收】
   当 readyState 变为 4 的时候表示服务器返回的数据接收完成，可以判断状态码来获取数据
+
 - 调用对象的`send()`方法向服务器发送请求，可以传入参数作为请求体
 
 ## 14. js 为什么要进行变量提升 ⭕️
@@ -653,7 +724,7 @@ axios 是一个库，使用 promise 对 XMLHttpRequest 进行了封装
 
 ## 21. esmodule、commonjs、AMD、UMD的区别 ⭕️
 
-- cjs是同步加载，esm是异步加载
+- cjs的require()是同步加载，esm的import()是异步加载
 
 - cjs导出的是值的拷贝，esm导出的是值的引用
 
@@ -731,7 +802,136 @@ Object.assign()、扩展运算符、数组的 slice()、concat()
 深拷贝：
 JSON.parse(JSON.stringify())
 
-## 25. 常见的DOM操作有哪些
+## 25. js获取原型的方法
+
+Object.getPrototypeOf(obj) 【推荐】
+
+obj.______proto______ 【不推荐】
+
+## 26. eval函数
+
+接收一个字符串，并将字符串解析成js代码并执行
+
+性能较低，要先解析字符串再执行代码
+
+## 27. ["1", "2", "3"].map(parseInt) 答案是多少？
+
+parseInt()第二个参数是解析的进制，
+
+值在2～36之间，如果为0，则十进制。如果小于2，则返回NaN
+
+parseInt("1", 0) => 1
+
+parseInt("2", 1) => NaN
+
+parseInt("3", 2) => NaN
+
+答案是: [1, NaN, NaN]
+
+## 28. 什么是Polyfill？
+
+Polyfill指的是实现浏览器并不支持的原生api的代码
+
+一些新特性或api可能旧版本浏览器不支持，Polyfill会检查浏览器是否支持，如果不支持就自动添加所需代码来实现该功能
+
+## js中的高阶函数
+
+高阶函数：接受一个函数或多个函数作为参数 / 输出一个函数
+
+- forEach((item,index,arr) => {}, thisArg)
+  
+  ```js
+  Array.prototype.forEach = function(callback) {
+    if(!(callback instanceof Function)) {
+      throw new TypeError(callback + 'is not a function')
+    }
+    const arr = this, thisArg = arguments[1] || window
+    for(let i = 0; i < arr.length; i++) {
+      callback.call(thisArg, arr[i], i, arr)
+    }
+  }
+  ```
+
+- map，返回新的数组
+  
+  ```js
+  Array.prototype.map = function(callback) {
+    if(!(callback instanceof Function)) {
+      throw new TypeError(callback + 'is not a function')
+    }
+    const arr = this, thisArg = arguments[1] || window
+    let res = []
+    for(let i = 0; i < arr.length; i++) {
+      res.push(callback.call(thisArg, arr[i], i, arr))
+    }
+    return res
+  }
+  ```
+
+- filter，返回结果为true的
+  
+  ```js
+  Array.prototype.filter = function(callback) {
+    if(!(callback instanceof Function)) {
+      throw new TypeError(callback + 'is not a function')
+    }
+    const arr = this, thisArg = arguments[1] || window
+    let res = []
+    for(let i = 0; i < arr.length; i++) {
+      if(callback.call(thisArg, arr[i], i, arr)) {
+        res.push(arr[i])
+      }
+    }
+    return res
+  }
+  ```
+
+- every
+  
+  ```js
+  Array.prototype.every = function(callback) {
+    if(!(callback instanceof Function)) {
+      throw new TypeError(callback + 'is not a function')
+    }
+    const arr = this, thisArg = arguments[1] || window
+    for(let i = 0; i < arr.length; i++) {
+      if(!(callback.call(thisArg, arr[i], i, arr))) {
+        return false
+      }
+    }
+    return true
+  }
+  ```
+
+## js生成随机数的方法
+
+1. 生成[0,1)范围内的随机浮点数
+   
+   Math.random()
+
+2. 生成[m,n)范围内的随机浮点数
+   
+   Math.random() * (n-m) + m
+
+3. 生成[m,n)范围内的随机整数
+   Math.floor(Math.random() * (n-m)) + m
+
+## js实现数组随机排序
+
+```javascript
+function randomSort(arr) {
+    let length = arr.length
+    for(let index = 0; index < length; index++) {
+      let randomIndex = Math.floor(Math.random() * (length - index)) + index
+      [arr[randomIndex], arr[index]] = [arr[index], arr[randomIndex]]
+    }
+    return arr
+}
+```
+
+# DOM BOM
+
+## 1. 常见的DOM操作有哪些
 
 1. DOM节点的获取
    
@@ -751,19 +951,7 @@ JSON.parse(JSON.stringify())
 
    removeChild
 
-## 26. js获取原型的方法
-
-Object.getPrototypeOf(obj) 【推荐】
-
-obj.______proto______ 【不推荐】
-
-## 27. eval函数
-
-接收一个字符串，并将字符串解析成js代码并执行
-
-性能较低，要先解析字符串再执行代码
-
-## 28. 事件是什么？IE 与火狐的事件机制有什么区别？如何阻止冒泡？
+## 2. 事件是什么？IE 与火狐的事件机制有什么区别？如何阻止冒泡？
 
 1. 事件是用户操作网页时发生的交互动作，如click、mouseenter
    
@@ -773,7 +961,7 @@ obj.______proto______ 【不推荐】
 
 3. event.stopPropagation()
 
-## 29. 三种事件模型是什么 ⭕️
+## 3. 三种事件模型是什么 ⭕️
 
 1. DOM0级模型
    
@@ -803,31 +991,19 @@ obj.______proto______ 【不推荐】
    
    removeEventListener('click', function() {})
 
-## 30. 事件委托是什么？
+## addEventListener的第三个参数
 
-事件委托利用了事件冒泡的机制，事件在冒泡的过程中会上传到父节点，所以可以把子元素的监听函数绑定在父元素上，用父元素的监听函数统一处理子元素的事件
+true - 在事件捕获阶段调用函数
+
+false - 在事件冒泡阶段调用函数
+
+默认false
+
+## 4. 事件委托/事件代理是什么？
+
+事件委托利用了事件冒泡的机制，事件在冒泡的过程中会上传到父节点，所以可以把子元素的监听函数绑定在父元素上，用父元素的监听函数统一处理子元素的事件。e.target可以获取到实际触发事件的元素。
 
 好处：不需要给多个子元素都绑定监听函数、动态绑定(新增节点的监听函数绑在父元素上)
-
-## 31. ["1", "2", "3"].map(parseInt) 答案是多少？
-
-parseInt()第二个参数是解析的进制，
-
-值在2～36之间，如果为0，则十进制。如果小于2，则返回NaN
-
-parseInt("1", 0) => 1
-
-parseInt("2", 1) => NaN
-
-parseInt("3", 2) => NaN
-
-答案是: [1, NaN, NaN]
-
-## 32. 什么是Polyfill？
-
-Polyfill指的是实现浏览器并不支持的原生api的代码
-
-一些新特性或api可能旧版本浏览器不支持，Polyfill会检查浏览器是否支持，如果不支持就自动添加所需代码来实现该功能
 
 # 原型与原型
 
@@ -1080,6 +1256,10 @@ promise 还有一个 then()方法，使用 then()可以为成功的状态和失�
   **返回一个 promise 对象**
   接收一个数组，数组的每一项都是一个 promise 对象，当数组中所有 promise 的状态都变成 resolved，promise 对象的状态就会变成 resolved，成功值也是一个数组，数组里的元素是每个 promise 的成功值
   如果有一个promise状态变成 rejected，promise 对象的状态就会变成 rejected，失败值就是第一个导致失败的值
+  
+  【当有promise失败了，会直接返回，其他promise还会继续执行，但其结果被忽略】
+  
+  【注意promise中没有cancel的概念，promise.all不会cancel其他promise】
 
 - Promise.race()
   **返回一个 promise 对象**
@@ -1089,15 +1269,69 @@ promise 还有一个 then()方法，使用 then()可以为成功的状态和失�
 - finally()
   不管 promise 状态如何都会执行，不接收参数，finally()里面的操作和状态无关
 
+- Promise.allSettled()
+  
+  返回一个promise对象
+  
+  接收一个数组，数组的每一项都是一个promise对象，当数组中所有promise的状态都改变之后，promise对象的状态就会变成resolved，成功值是一个对象数组
+  
+  【如果传空数组，也会返回成功的promise】
+  
+  每个对象都有这些属性：
+  
+  - status("fulfilled"/"rejected")
+  
+  - value，就是这个promise的成功值，当status为fulfilled时才有这个属性
+  
+  - reason，就是这个promise的失败值，当status为rejected时才有这个属性
+
+## Promise.resolve()
+
+- 接收一个固定值value => 返回成功的promise，成功值是value
+
+- 接收一个promise =>  返回这个promise
+  
+  ```js
+  const original = Promise.resolve(1)
+  const cast = Promise.resolve(original)
+  console.log(cast === original) // true
+  ```
+
+- 接收一个thenable（带有then()的对象）=> 返回的promise状态跟随这个then()
+  
+  ```js
+  const p = {
+    then(onFulfill, onReject) {
+      onFulfill("fulfilled!");
+    }
+  }
+  ```
+
+实现：
+
+```js
+Promise.myResolve = function(value) {
+    return new Promise(resolve => {
+        resolve(value)
+    })
+}
+```
+
+不需要判断value是不是promise对象，因为resolve()方法会自己处理，如果resolve()收到一个不是promise的值，它会创建一个promise来传递这个值，如果resolve()收到一个promise，它就直接传递这个promise
+
+同时，如果给resolve()传递一个具有then()的对象，resolve()会尝试将这个对象转成真正的promise对象，它会调用then()，然后根据then()的执行结果来决定新创建的promise的状态
+
+所以这里都不用判断，return一个promise就解决了，，
+
 ## 4. Promise 解决了什么问题 ⭕️
 
-1. 解决回调地狱问题，提高了代码可读性
+1. 解决回调地狱问题，代码结构不清晰难维护
 
-2. 提供了更简单的方法来控制异步操作的顺序
+2. 提供了更优雅的方法 链式调用 来管理异步操作的状态和结果
 
-3. 提供错误处理，利用catch()更方便地捕获和处理异步操作中的错误
+3. 提供方便的错误处理，利用catch()捕获和处理异步操作中的错误
 
-4. 提供了对并行异步操作的管理，如果有多个异步操作需要同时进行并要做后续处理，使用Promise.all()
+4. 提供了promise.all、promise.allSettled方便我们处理需要同时进行的多个异步操作
 
 ## 5. Promise.all 和 Promise.race 的使用场景
 
@@ -1126,21 +1360,56 @@ async 函数返回一个 promise 对象，如果在函数中 return 一个直接
 - try/catch（await 表达式放进 try 里）
 - 在 await 表达式后接一个 catch()
 
+## promise的值穿透和异常穿透
+
+- 值穿透
+  
+  then()和catch()期望的参数是一个函数，传入非函数就会发生值穿透
+
+```js
+Promise.resolve(1)
+.then(2)
+.then(Promise.resolve(3)
+.then(console.log)
+// 1
+```
+
+```js
+Promise.resolve(1)
+.then(() => 2)
+.then(() => Promise.resolve(3))
+.then(console.log)
+// 3
+```
+
+- 异常穿透
+
+如果某个失败的promise的异常没有被捕获处理，就会继续向下传递到链中下一个catch或是then的失败回调中
+
+```js
+Promise.reject(1)
+.then(res => console.log(res))
+.then(res => console.log(res), error => console.log(err)) // 输出
+.catch(err => console.log(err)) // catch就捕获不到了，已经在上面被捕获
+```
+
 ## 8. 并发和并行的区别？⭕️
 
-并发：假设有两个任务A和B，只有一个处理器，任务A和任务B会快速地交替执行，也就是实际上在同一时刻A和B不会同时运行
+并发：多个任务在同一时间段内交替执行，在单核处理器上。
 
-并行：假设有两个任务A和B，可以在不同的处理器上同时执行，也就是A和B可以在同一时刻同时运行
+也就是实际上在同一时刻多个任务不会同时运行
+
+并行：多个任务在同一时刻同时执行，通常在多核处理器上。
+
+也就是多个任务可以在同一时刻同时运行
 
 ## 9. setTimeout、setInterval、requestAnimationFrame各有什么特点 ⭕️
 
 setTimeout、setInterval不一定准时执行，因为js是单线程的，必须等主线程上的任务都执行完，才能执行它们的回调，如果在指定时间内遇到了阻塞耗时的代码，就可能导致它们的回调延迟执行
 
-setInterval可能出现任务重叠问题，假设设定的时间间隔是100ms，每隔100ms执行一次回调，如果某次回调的执行时间超过了100ms，下一个任务将会立即开始执行，而不会等前一个任务完成，就造成了任务积累，影响性能
+setInterval可能出现任务重叠问题，假设设定的时间间隔是100ms，每隔100ms执行一次回调，如果某次回调的执行时间超过了100ms，下一个任务将会立即开始执行，而不会等前一个任务完成，就造成了任务重叠，影响性能
 
-requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的定时执行。RAF基于浏览器的刷新率进行回调的，并会自动进行节流和优化
-
-## 10. 倒计时的纠偏实现
+requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的定时执行。RAF基于浏览器的刷新频率进行回调的，并会自动进行节流和优化
 
 # 面向对象
 
@@ -1154,6 +1423,8 @@ requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的�
 
 4. 工厂函数 
    
+   缺点：创建出来的对象无法识别类型。对象标识不清晰。
+   
    ```js
    function createPerson(name, age) {
        return {
@@ -1166,90 +1437,101 @@ requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的�
 
 5. Object.create()
 
-## 2. 继承 ⭕️
+## 2. js中继承的方式和多种优缺点 ⭕️
 
 子类要拥有父类的全部属性和方法，同时子类还能定义自己特有的属性和方法
 实现继承：
 
-- es6 使用 extends 关键字
+1. es6 使用 extends 关键字
 
-- 原型链继承
-  父类的共享方法和属性都在父类的原型对象上，
-  将子类的原型指向父类的实例对象，就可以通过父类的实例对象间接访问到父类的原型对象
-  Child.prototype = new Parent()
-  要将 Child.prototype.constructor 指回原来的构造函数
-  
-  缺点：不能继承父类的实例属性和方法
+2. 原型链继承
+   父类的共享方法和属性都在父类的原型对象上，
+   将子类的原型指向父类的实例对象，就可以通过父类的实例对象间接访问到父类的原型对象
+   Child.prototype = new Parent()
+   
+   缺点：
+   
+   - 要将 Child.prototype.constructor 指回原来的构造函数
+   
+   - 不能继承父类的实例属性和方法
+   
+   - 子类的所有实例共享同一个父类实例，如果一个子类实例修改了引用类型的属性，其他实例也会被影响
 
-- 构造函数继承
-  定义一个父构造函数和子构造函数，子构造函数中通过 call()继承父构造函数的属性
-  缺点：不能继承父类原型上的属性和方法
-  
-  ```js
-  function Father(name, age) {
-      this.name = name;
-      this.age = age;
-  }
-  function Child(name, age) {
-      Father.call(this, name, age);
-  }
-  ```
+3. 构造函数继承
+   定义一个父构造函数和子构造函数，子构造函数中通过 call()继承父构造函数的属性
+   
+   引用类型的属性不会被所有实例共享
+   
+   缺点：不能继承父类原型上的属性和方法
 
-- 组合式继承
-  
-  原型链继承+构造函数继承
-  
-  缺点：父类构造函数被多次调用，一次是通过 `new Parent()` 调用，一次是在 `Child` 构造函数内部调用。
+```js
+function Father(name, age) {
+    this.name = name;
+    this.age = age;
+}
+function Child(name, age, sex) {
+    Father.call(this, name, age);
+    this.sex = sex;
+}
+```
 
-- 原型式继承
-  
-  利用Object.create()创建一个原型指向为父类的对象
-  
-  ```js
-  const father = { xxx }
-  const child = Object.create(father)
-  ```
-  
-  缺点：无法传递构造函数参数(只能基于现有对象创建新对象，不会执行构造函数)
-  
-  如果父类原型上的属性是引用类型，那么多个继承的子类都会共享同一个引用，这意味着修改这个引用类型的属性时会影响多处
+4. 组合式继承
 
-- 寄生式继承
-  
-  在👆的基础上新增属性和方法
-  
-  ```js
-  const father = { xxx }
-  
-  function clone(father) {
-      const child = Object.create(father)
-      child.newFunction = function() {}
-      return child
-  }
-  const child = clone(father)
-  ```
+原型链继承+构造函数继承
 
-    缺点: 和👆一样
+缺点：父类构造函数被调用两次，一次是通过 `new Parent()` 调用，一次是在 `Child` 构造函数内部调用。
 
-- 寄生组合式继承
-  
-  寄生式+组合式
-  
-  目前最成熟
-  
-  ```js
-  function Father(name, age) {
-      this.name = name;
-      this.age = age;
-  }
-  function Child(name, age) {
-      Father.call(this, name, age);
-  }
-  // 使用Object.create()减少一次构造函数的调用
-  // 组合式继承中右边是new Father()
-  Child.prototype = Object.create(Father.prototype)
-  Child.prototype.constructor = Child
-  ```
+5. 原型式继承
+
+利用Object.create()创建一个原型指向为父类的对象
+
+```js
+const father = { xxx }
+const child = Object.create(father)
+```
+
+缺点：
+
+- 无法传递构造函数参数，因为Object.create不涉及构造函数调用
+
+- 也存在引用类型的属性共享问题
+6. 寄生式继承
+
+在原型式继承的基础上，给新对象增加一些额外的方法和属性
+
+```js
+const father = { xxx }
+
+function clone(father) {
+    const child = Object.create(father)
+    child.newFunction = function() {}
+    return child
+}
+const child = clone(father)
+```
+
+缺点: 和👆一样
+
+7. 寄生组合式继承
+
+寄生式+组合式
+
+目前最成熟
+
+```js
+function Father(name, age) {
+    this.name = name;
+    this.age = age;
+}
+function Child(name, age, sex) {
+    Father.call(this, name, age);
+    this.sex = sex;
+}
+// 使用Object.create()减少一次构造函数的调用
+// 组合式继承中右边是new Father()
+Child.prototype = Object.create(Father.prototype)
+Child.prototype.constructor = Child
+```
 
 能实现继承父类的实例和原型上的属性和方法，**并且避免了组合继承中多次调用父类构造函数的问题**
 
@@ -1267,13 +1549,15 @@ requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的�
    标记阶段：垃圾回收器从全局对象开始遍历，将所有能通过引用链访问到的对象标记为“存活”
    清除阶段：垃圾回收器清除掉没有被标记的对象，释放它们占用的内存空间
 
+缺点：清除之后剩余的内存位置是不变的，就会出现很多内存碎片
+
 2. 引用计数
    记录每个值被引用的次数
    声明一个变量并赋一个引用值时，这个值引用数为 1，如果有别的变量也赋了这个引用值，引用数+1，如果这个变量又被其他值覆盖了，引用数会减 1，一个值引用数为 0 的时候会被释放内存
-   
-   缺点：循环引用问题
-   a 对象和 b 对象通过属性相互引用，它们的引用数都不会为 0，就没办法进行内存释放
-   解决：手动释放 赋值为 null
+
+缺点：循环引用问题
+a 对象和 b 对象通过属性相互引用，它们的引用数都不会为 0，就没办法进行内存释放
+解决：手动释放 赋值为 null
 
 为了提高性能，减少垃圾回收：
 
@@ -1285,19 +1569,25 @@ requestAnimationFrame相较于setTimeout和setInterval，提供了更精确的�
 
 ## 2. 哪些情况会导致内存泄漏
 
-我们访问不到的变量，但依然占据着内存空间，不能被利用起来
+不再用到的内存空间，没有被及时回收时，称为内存泄漏
 
 - 意外的全局变量：在函数中给一个未声明的变量赋值，就会让他变成一个全局变量，函数执行完变量还会留在内存中
-- 设置了定时器忘记取消，定时器会持续引用相关对象，导致它们无法被垃圾回收
-- 操作dom时，对dom 对象的引用，即使dom元素从页面中被删除，也会保留引用
+
+- 遗忘的定时器和事件监听，如果不手动清理，回调函数和函数里的变量都无法被垃圾回收
+
+- dom引用，当引用了dom节点，即使移除dom节点，也会保留引用
+  
+  【如果置空了父节点，子节点仍然被引用，也会导致父节点无法被垃圾回收】
+
 - 滥用闭包，闭包会导致函数中引用的变量一直保存在内存中，内存占用空间过大，会有内存泄漏的威胁
+
 - 循环引用
 
 ## 3. 简述V8引擎的垃圾回收机制 ⭕️
 
 (V8引擎作为js的执行引擎之一，会实现并优化上面的垃圾回收策略)
 
-V8引擎将堆内存分为新生代和老生代。新生代存放的是新创建的对象，而老生代存放的是存活时间较长
+V8引擎将堆内存分为新生代和老生代。新生代存放的是大部分临时对象，而老生代存放的是存活时间较长的对象
 
 新生代内存被分为From空间和To空间，From空间占满时就会进行垃圾回收
 
@@ -1306,6 +1596,10 @@ V8引擎将堆内存分为新生代和老生代。新生代存放的是新创建
 老生代垃圾回收的过程：先进行标记-清除，标记所有存活的对象，标记结束后清除掉没有标记的对象。然后整理内存碎片，将存活的对象全部向一端移动。
 
 由于js是单线程的，在进行垃圾回收的过程中，会暂停业务逻辑的执行。老生代相比新生代耗时会比较长，为了提高性能，引入了**增量标记**的方法，将一次标记任务分为多步，每执行完一步就执行一会应用逻辑，就这样交替进行。
+
+·优点：
+
+存活时间短的频率较高快速清理，存活时间长的频率较低清理，新老生代回收机制和频率不同，提高了垃圾回收的效率
 
 # ts
 
@@ -1331,4 +1625,47 @@ V8引擎将堆内存分为新生代和老生代。新生代存放的是新创建
 
 - interface可以重复声明，会合并。type不可以
 
-- interface通过extends来扩展接口，type通过交叉类型&来合并多个类型
+- interface通过extends来扩展接口，type通过交叉类型&来合并多个类型()
+
+## 4. unknown和any的区别
+
+unknown表示未知类型，可以是任意类型。不能直接对unknown类型进行操作，需要先通过类型检查或类型断言来缩小类型范围才能操作
+
+any表示任何类型，可以直接对any类型进行操作，不会触发类型检查或编译错误
+
+## 5. 有哪些方法告诉编译器unknown一定是某个类型
+
+1. 类型断言
+
+2. 使用typeof、instanceof等缩小unknown类型
+
+## 6. 类型守卫
+
+类型守卫用于在运行时确定变量的类型
+
+类型守卫主要包括几种方式：
+
+- typeof
+
+- instanceof
+
+- in
+
+- 自定义类型守卫
+
+## 7. 联合类型和交叉类型
+
+联合类型：竖线|分割多个类型，表示变量可以是其中任意一个类型
+
+交叉类型：与符&连接多个类型，表示变量包含这多个类型
+
+
+
+## 8. 写一个函数类型
+
+参数为string返回number，参数为number返回string
+
+```typescript
+type Func<T extends (...args: any) => any> 
+= T extends (...args: infer P) => any ? (P extends string ? number : string) : never
+```
