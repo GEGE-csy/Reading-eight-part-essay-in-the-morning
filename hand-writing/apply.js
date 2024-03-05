@@ -13,3 +13,13 @@ Function.prototype.myApply = function(context) {
   return result
 }
 
+global.a = 2
+function test(...args) {
+  console.log(this.a)
+  console.log(args)
+}
+test(1,2,3)
+const obj = {
+  a: 3
+}
+test.myApply(obj,[1,2,3])

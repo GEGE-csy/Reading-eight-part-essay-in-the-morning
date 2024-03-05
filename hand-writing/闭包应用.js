@@ -2,19 +2,20 @@
 function createCounter() {
   let count = 0 // 私有变量
 
-  function increment() {
-    count++
-    console.log(count)
-  }
-
   return {
-    increment
+    getCount: function() {
+      return count
+    },
+    increment: function() {
+      count++
+    }
   }
 }
 
 const counter = createCounter()
-counter.increment() // 1
-counter.increment() // 2
+console.log(counter.getCount()) // 0
+counter.increment() 
+console.log(counter.getCount()) // 1
 
 // / 单例模式
 const getSingle = (function() {
@@ -39,10 +40,11 @@ function debounce(fn, delay) {
   return function() {
     if(timer) {
       clearTimeout(timer)
-      timer = null
     }
     timer = setTimeout(() => {
+      // 将this设置为当前的this
       fn.call(this)
+      timer = null
     }, delay)
   }
 }
@@ -50,7 +52,7 @@ function throttle(fn, delay) {
   let timer = null
   return function() {
     if(!timer) {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         fn.call(this)
         timer = null
       }, delay)

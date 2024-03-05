@@ -8,6 +8,7 @@ Function.prototype.myCall = function(context) {
   // 假设我们要调用函数test()，使用上是：test.myCall(this指向)
   // 那么这里的this就指向了test函数，但我们希望调用test时this指向context，
   // 就可以给context对象添加一个属性fn，这样调用fn时this就会指向context
+  /// 将函数绑定到context上，然后调用context.fn()，实现在context上执行函数的效果
   context.fn = this
   // 调用fn并拿到返回值
   let result = context.fn(...args)

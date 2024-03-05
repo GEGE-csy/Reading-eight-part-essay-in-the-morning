@@ -3,11 +3,11 @@ function debounce(fn, delay) {
   let timer = null;
   return function() {
     if(timer) {
-      clearTimeout(timer);
-      timer = null;
+      clearTimeout(timer);   
     }
     timer = setTimeout(() => {
       fn.call(this);
+      timer = null;
     }, delay)
   }
 }

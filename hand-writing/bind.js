@@ -4,7 +4,7 @@ Function.prototype.myBind = function(context) {
   // bind返回的是一个函数
   return function () {
     // 这里要合并参数，一部分参数是调用bind传的，一部分是调用bind()返回的函数传的
-    const newArgs = args.concat(Array.from(arguments))
+    const newArgs = [...args, ...arguments]
     return fn.apply(context,newArgs)
   }
 }
@@ -18,5 +18,5 @@ function test(...rest) {
 
 test.myBind(global, 1, 2, 3)(4)
 
-test.bind()()
+// test.bind()()
 
