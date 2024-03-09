@@ -1,22 +1,92 @@
 # vue基础
 
-## 1. vue 的响应式原理
+## 1.vue2 的响应式原理 / 双向数据绑定原理 ⭕️
 
-vue 实例创建时，vue 会遍历 data 中的属性，用 Object.defineProperty()（vue3 用 proxy）将它们转为 getter 和 setter，在属性被访问或者修改的时候就通知变化。每个组件实例有相应的 watcher 程序，它会在组件渲染的过程中把属性标记为依赖，之后当依赖项的 setter 被调用时会通知 watcher 重新计算从而更新组件
+vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现响应式
 
-## 2.vue 的双向数据绑定原理 ⭕️
+- Observer监听器：递归遍历数据对象，利用Object.definePropety拦截每个属性，转成getter和setter，在getter中收集依赖(订阅者)，setter中通知订阅者更新视图
 
-vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现
+- Compile解析器：解析模板指令，将模板变量替换为数据，给节点绑定更新函数
 
-主要分为以下几个步骤：
+- Dep和Watcher发布订阅模型：作为连接Observer和Compile的桥梁，Dep是发布者，Watcher是订阅者，getter中收集的依赖就是保存在Dep的一个列表里，每个属性变化时触发setter会通知Dep收集的所有Watcher，执行指令绑定的更新函数，从而更新视图【通知Watcher执行update()，update()将Watcher加入异步队列，等待执行Watcher的回调更新视图，Watcher记录了更新视图的函数】
 
-- 监听器 Observer ，通过 Object.defineProperty()或者 proxy 来劫持 data 中的属性，将它们转为 getter、setter 并监听变化，有变化就通知Dep消息订阅器，Dep再通知订阅者 Watcher，Watcher不止一个，消息订阅器 Dep 会收集订阅者，Dep在 Observer 和 Watcher 之间通知变化
+## 2.vue是如何收集依赖的 ⭕️
 
-- 解析器 Compile 解析模板指令，初始化页面视图，给每个指令对应的节点绑定更新函数，并添加订阅者 Watcher 来监听数据，一旦收到通知就更新视图
+依赖收集就是收集订阅了数据变化的watcher
 
-- 订阅者 Watcher 是 Observer 和 Compile 之间的一个桥梁，在自身实例化时往Dep里面添加自己，自身有一个update()，当收到 Dep 的通知时，Watcher 会调用update()，并触发Compile中绑定的回调
+目的是，当响应式数据发生变化的时候，触发了setter时，要知道应该通知哪些订阅者
 
-Observer通过 Object.defineProperty()或者 proxy 来劫持 data 中的属性，将它们转为 getter、setter 并监听变化，有变化就通知订阅者watcher。Compile解析模板指令，给指令对应节点绑定更新函数，并添加watcher监听数据，当watcher收到observer的通知，就触发compile中绑定的回调更新视图
+基于三个类实现，Observer、Dep、Watcher
+
+Observer类负责数据劫持，触发getter时调用dep的depend()收集依赖，触发setter时调用dep的notify()通知Watcher更新视图
+
+Dep类负责收集Watcher，有一个全局的静态属性Dep.target会跟踪当前正在执行的watcher，Dep的depend()会通知Dep.target保存的这个watcher订阅dep，notify()会遍历subs列表，通知watcher执行update()
+
+Watcher类负责订阅dep，addDep()会调用dep的addSub()，让dep收集当前的watcher加入subs列表，update()将watcher加入异步队列，等待调用watcher的回调更新视图
+
+【省略大部分】
+
+```js
+class Observer {
+    constructor() {
+        if(Array.isArray(value)) {}    // 对数组的响应式处理
+        else {    // 对对象的响应式处理
+            this.walk(value)
+        }
+    }
+    walk(obj) {
+        const keys = Object.keys(obj)
+        // defineReactive对每个属性作响应式处理
+        for(let i = 0; i < keys.length; i++) {
+            defineReactive(obj, keys[i], obj[key[i]])
+        }
+    }
+}
+function defineReactive(obj, key, value) {
+    const dep = new Dep()
+    Object.defineProperty(obj, key, {
+        get: function reactiveGetter() {
+            if(Dep.target) { // 保存当前正在执行的Watcher
+                dep.depend() // 进行依赖收集
+            }
+            return value
+        }
+        set: function reactiveSetter() {
+            dep.notify() // 通知Watcher更新视图
+        }
+    })
+}
+class Dep {
+    constructor() {
+        this.subs = [] // 保存Watcher的列表
+    }
+    addSub (sub: Watcher) {
+        this.subs.push(sub)
+    }
+    depend() { // Dep.target调用addDep()，将自己收集进Dep的subs列表
+        if(Dep.target) {
+            Dep.target.addDep(this)
+        }  
+    }
+    notify() {
+        const subs = this.subs.slice()
+        for(let i = 0; i < subs.length; i++) {
+            subs[i].update()
+        }
+    }
+}
+class Watcher {
+    constructor() {
+        Dep.target = this
+    }
+    addDep(dep) {
+        dep.addSub(this)
+    }
+    update() {
+       queueWatcher(this) // 加入异步更新队列
+    }
+}
+```
 
 ## 3.使用 Object.defineProperty()来进行数据劫持的缺点
 
@@ -44,13 +114,13 @@ Model 中的数据会绑定到 ViewModel，当数据改变时会触发 View 的�
 
 - 提高了可测试性，视图逻辑和业务逻辑分开，更容易进行单元测试
 
-- 数据驱动视图，采用双向数据绑定，数据的变化可以自动反映在视图，用户操作改变的数据也可以自动同步到数据模型，开发者无需手动操作dom
+- 提高开发效率，数据驱动视图，开发者无需手动操作dom，可以更专注于业务逻辑
 
 缺点：
 
 - bug很难被调试，页面异常可能是view有问题，也可能是model有问题
 
-- mvvm的数据绑定机制在处理大规模数据或频繁变动的数据可能会引起性能开销
+- 对于过大的项目，数据绑定会导致内存开销大，影响性能【只将必要的数据绑定到视图上，减少不必要的更新】
 
 ## 5. MVVM、MVC、MVP 的区别 ⭕️
 
@@ -109,7 +179,7 @@ slot 就是插槽，一个标签元素
 插槽分三类：匿名插槽、具名插槽、作用域插槽
 匿名插槽：slot 不指定 name 属性，默认名字 default，一个组件只能有一个匿名插槽
 具名插槽：slot 指定了 name 属性，一个组件可以有多个具名插槽
-作用域插槽：因为插槽内容是在父组件的模板中被定义的，所以只能访问父组件的作用域，不能访问子组件的作用域，所以如果插槽内容需要子组件的数据，子组件可以将数据传递给父组件
+作用域插槽：因为z z插槽内容是在父组件的模板中被定义的，所以只能访问父组件的作用域，不能访问子组件的作用域，所以如果插槽内容需要子组件的数据，子组件可以将数据传递给父组件
 
 【子组件将数据作为一个属性绑定在 slot 元素上，比如`<slot :childData="data"></slot>`
 父组件中使用 v-slot(#)来获取数据】
@@ -228,93 +298,7 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 - 新定义一个 data，初始化为 prop 值
 - 新定义一个计算属性，处理 prop 值
 
-## vue是如何收集依赖的 ⭕️
 
-vue实例化时，会调用`initState()`初始化实例，其中对data的响应式处理，会调用`observe()`，`observe()`中会初始化一个`Observer`实例，并传入需要做响应式的对象，
-
-`Observer`为每个属性创建了一个`Dep`对象，Dep是依赖收集的核心
-
-在`Observer`中调用了`defineReactive()`对对象进行响应式处理，拦截属性的getter和setter，在属性的getter中进行依赖收集，通过一个全局的`Dep.target`来跟踪当前正在计算的`Watcher`，当getter被触发时，调用`dep.depend()`将当前的`Watcher`添加到Dep对象的订阅者列表(subs)中
-
-组件渲染的过程中会创建一个`Watcher`对象，Watcher的get()会调用`pushTarget()`将`Dep.target`赋值为当前的`Watcher`
-
-这样就完成了依赖收集的过程
-
-【当属性的setter被触发时，会调用`dep`的`notify()`，遍历dep的subs中所有的watcher，并执行它们的`update()`，`update()`中会触发更新操作】
-
-省流版：
-
-vue初始化实例的过程中，会对data作响应式处理，为每个属性创建一个Dep对象，拦截属性的getter和setter，在属性的getter中进行依赖收集，通过一个全局的Dep对象来跟踪当前正在计算的Watcher，当getter被触发时，调用dep.depend()将当前的Watcher添加到Dep对象的订阅者列表中
-
-【省略大部分】
-
-```js
-export function initState(vm) {
-    const opt = vm.$options     // 从Vue实例上拿到配置项
-    observe(vm._data = {}, true)    // 对data作响应式处理
-}
-
-export function observe(value, asRootData) {
-    let ob
-    ob = new Observer(value) // 创建一个Observer实例，初始化传入需要做响应式的对象
-}
-export class Observer {
-    constructor() {
-        this.value = value
-        this.dep = new Dep()
-        if(Array.isArray(value)) {}    // 对数组的响应式处理
-        else {    // 对对象的响应式处理
-            this.walk(value)
-        }
-    }
-    walk(obj) {
-        const keys = Object.keys(obj)
-        for(let i = 0; i < keys.length; i++) {
-            defineReactive(obj, keys[i])
-        }
-    }
-}
-export function defineReactive() {
-    Object.defineProperty(obj, key, {
-        get: function reactiveGetter() {
-            if(Dep.target) {
-                dep.depend()
-            }
-            return value
-        }
-        set: function reactiveSetter() {
-            dep.notify()
-        }
-    })
-}
-export default class Dep {
-    addSub (sub: Watcher) {
-        this.subs.push(sub)
-    }
-    depend() {
-        if(Dep.target) {
-            Dep.target.addDep(this)
-        }  
-    }
-    notify() {
-        const subs = this.subs.slice()
-        for(let i = 0; i < subs.length; i++) {
-            subs[i].update()
-        }
-    }
-}
-export default class Watcher {
-    get() {
-        pushTarget(this)
-    }
-    addDep(dep) {
-        dep.addSub(this)
-    }
-    update() {
-        ...
-    }
-}
-```
 
 ## 18. vue 的优点
 
@@ -422,15 +406,15 @@ web应用性能的两个主要方面：
 
 优点：
 
-- 用户体验好。加载初始页面后，后续的导航和页面切换都是通过异步加载数据更新内容实现的
+- 用户体验好。加载初始页面后，后续的页面切换都是通过异步加载数据更新内容实现的，用户感知到的延迟较小
 
 - 降低服务器负载。加载初始页面后，后续不再需要重新加载整个页面，降低了服务器负载
 
-- 适合前后端分离开发。前端负责页面渲染和交互，后端负责处理数据和业务逻辑
+- 通常采用前后端分离开发。前端负责页面渲染和交互，后端负责处理数据和业务逻辑，降低了耦合度
 
 缺点：
 
-- 首屏加载速度慢，一开始需要一次性加载js、css等资源
+- 首屏加载速度慢，首次需要加载大量html、js、css等资源
 
 - SEO难度大，页面上的内容大部分是js动态渲染出来的，爬虫爬取几乎不到什么内容
 
@@ -800,7 +784,7 @@ vue3中组合式api能更方便我们去封装hooks来实现逻辑复用
 - 使用虚拟 DOM 可以减少直接操作真实 DOM 的次数，利用 diff 算法比较新旧虚拟 DOM，只更新变化的部分，不会引起频繁的重排和重绘
 - 缺点是首次渲染 DOM 的时候多了一层虚拟 DOM 的计算，速度比正常稍慢
 
-## 2. 虚拟dom的解析过程 ⭕️
+## 2. 虚拟dom的解析过程
 
 首先对将要插入到文档中的dom树结构进行分析，用js对象将其表示出来，然后保存js对象树，最后将dom树插入到文档中
 
@@ -821,6 +805,12 @@ vue3中组合式api能更方便我们去封装hooks来实现逻辑复用
 2. 跨平台
    
    虚拟dom本质是js对象，方便跨平台操作
+
+## 虚拟dom真的快吗？任何时候都快吗？
+
+操作真实dom需要生成html字符串+重建所有的dom，操作虚拟dom：生成虚拟节点+diff算法比较差异+更新必要的dom，在需要操作大量真实dom的时候，虚拟dom的消费对比起来是很便宜的，所以说使用虚拟dom能保证性能下限。在一些简单场景下，操作真实dom可能更加高效。
+
+而且虚拟dom本质上是为了提高我们的开发效率，在更新节点时，会检查哪些节点需要更新，尽量复用节点，这些操作我们也可以手动操作来实现，但是会耗费我们的精力。
 
 ## 4. diff 算法的原理 ⭕️
 
