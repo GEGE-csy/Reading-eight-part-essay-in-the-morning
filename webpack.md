@@ -1,16 +1,18 @@
 # 对 webpack 的理解
 
-webpack 是模块打包工具，可以使用webpack管理模块，它通过分析模块之间的依赖关系，经历一系列构建流程，最终输出一个静态文件
+webpack 将所有的资源都看成是模块，给定一个或多个入口文件，webpack从这些入口文件开始找到所有的依赖文件，然后将各个依赖文件通过loader和plugin处理后打包到一起，最终输出一个静态文件
 
-在构建流程中webpack利用loader可以处理各种类型的资源，还提供了很多plugin来优化构建过程
+# webpack解决什么问题
+
+模块化管理和资源打包优化问题。传统前端开发使用全局变量和脚本标签引入文件容易导致命名冲突代码难维护。
 
 # bundle、chunk、module 分别是什么
 
-bundle：打包生成的输出文件
-chunk： webpack打包的时候，会根据文件引用关系调用loader逐个翻译module，这些module就形成了一个chunk
+- bundle：打包生成的输出文件
 
-【如果有多个入口文件，会有多条打包路径，一个路径形成一个chunk】
-module：模块，一个模块对应一个文件
+- module：模块，一个模块对应一个文件
+
+- chunk： chunk是module的集合，webpack打包的时候会从入口文件开始，根据依赖关系逐个处理module，chunk就是由这些module组成的。如果有多个入口文件，会有多条打包路径，一个路径就会形成一个chunk。除了入口entry会生成chunk，异步加载模块和代码分割也会生成chunk】
 
 # chunk vs bundle
 
@@ -28,7 +30,7 @@ chunk是过程中的代码块，bundle是结果的代码块
    
    - 传递一个字符串：`entry:'./src/main.js'`产生一个chunk
    
-   - 传递数组：`entry:['./src/main.js', './src/other.js']`产生一个chunk
+   - 传递数组：`entry:['./src/main.js', './src/other.js']`产生一个chunk【多入口合并成一个chunk】
    
    - 传递对象：对象中一个字段就生成一个chunk，产生两个chunk
      
@@ -99,7 +101,7 @@ plugin
 # webpack 的构建流程 ⭕️
 
 - 初始化：从配置文件中读取并合并配置参数，根据参数初始化 Compiler 对象，加载 plugin
-- 编译：根据配置中的 Entry 找出所有入口文件，递归地解析入口文件及依赖，构建整个依赖图。调用所有的loader翻译Module。
+- 编译：根据配置中的 Entry 找出所有入口文件，针对每个module调用对应的loader翻译文件内容，再找到该module依赖的module，递归进行编译处理
 - 构建：根据依赖关系，将编译后的Module 组合成一个个Chunk，再将 Chunk 转换成文件
 - 输出：将文件写入指定的输出目录
   【在这个过程中 webpack 会在特定的时间点广播，plugin 监听自己关心的事件然后执行】
@@ -108,7 +110,7 @@ plugin
 
 这个机制可以做到不用刷新浏览器而将新模块替换旧模块
 
-webpack-dev-server和浏览器之间维护了一个websocket，当本地资源发生变化的时候，dev server会向浏览器推送更新，并带上构建时的hash，让客户端和上一次资源对比，对比出差异后会向dev server发起请求获取更新内容
+webpack-dev-server和浏览器之间维护了一个websocket，dev server监听模块变化，当有模块发生变化的时候，dev server对模块重新构建，并生成一个hash值，然后向浏览器推送更新，浏览器对比上一次hash值，对比出差异后会向服务器请求更新的内容
 
 # 说下tree-shaking的原理 ⭕️
 
@@ -133,13 +135,23 @@ babel 的编译过程分为 3 个阶段：
 
 - 使用generator将转换后的ast再转成代码字符串
 
-# webpack 和 vite ⭕️
+# webpack 和 vite的区别 ⭕️
 
-- vite 服务器启动速度比 webpack 快，因为 vite 启动的时候不需要打包和编译
-  当浏览器请求需要的模块时，再对模块进行编译
-- vite 热更新比 webpack 快，当某个模块改变时，让浏览器去重新请求该模块即可，不像 webpack 要重新编译该模块的所有依赖
+1. vite服务器启动速度快
+   
+   vite启动不需要对整个项目进行编译打包，而是在浏览器需要加载某个模块的时候，拦截浏览器的请求，按需编译那个模块然后返回
+   
+   而且，vite基于esbuild预构建依赖，esbuild是go编写的，速度上比js编写的打包器预构建依赖快10-100倍
+   
+   【现代浏览器本身就支持 `es modules`，会`主动发起`请求去获取所需文件，vite也正是利用了`es modules`这个特性，使用vite运行项目时，首先会用`esbuild`进行预构建，将所有模块转换为`es module`，这样浏览器可以直接执行这些模块】
 
-【vite解析模块依赖关系使用了esbuild，使用go编写，比js编写的打包器构建依赖快10-100倍】
+2. vite热更新快
+   
+   webpack中一个模块改变时要重新编译该模块的所有依赖，vite只需要让浏览器重新请求该改变的模块
+
+【vite在生产环境下的打包工具是Rollup，Rollup是一款es module打包器，相比webpack打包生成的文件更小
+
+虽然esbuild打包速度比rollup快，但vite目前使用的插件api和esbuild不兼容，vite选择了rollup更灵活的插件api。注意使用vite可能会存在开发环境和生产环境打包结果不一致的问题】
 
 # 你知道哪些模块化标准? 说下cjs和esm的区别
 
@@ -187,11 +199,11 @@ commonjs(CJS)、es modules(ESM)、AMD、UMD
 
 - 打包构建，将经过转换处理的资源打包成最终的静态文件
 
-# webpack 做过哪些优化，开发效率方面、打包策略，构建速度等等 ⭕️
+# webpack 做过哪些优化 ⭕️
 
 开发效率：
 
-- dev server，快速启动一个本地开发环境
+- 热更新
 
 - source map，可以映射压缩后代码和源代码的对应关系，调试阶段很好定位错误
 
@@ -211,15 +223,15 @@ commonjs(CJS)、es modules(ESM)、AMD、UMD
 
 - thread-loader开启多进程打包【happypack在webpack5已弃用】
 
-- 优化loader，babel-loader排除解析node_modules相关依赖，开启缓存
+- 优化loader，babel-loader：排除解析node_modules相关依赖、开启缓存【减少对模块反复转译】
 
 - 配置externals选项，将一些依赖改成cdn方式引用，这些依赖就不会包括在输出文件中
 
 # webpack proxy为什么可以解决跨域？
 
-开发阶段，webpack-dev-server会启动一个本地开发服务器，我们的应用运行在localhost的一个端口上，而后端服务运行在另一个地址，由于浏览器同源策略会出现跨域问题
+开发阶段，webpack-dev-server会启动一个本地开发服务器，所以我们的应用运行在localhost的一个端口上，而后端服务运行在另一个地址，由于浏览器同源策略会出现跨域问题
 
-设置webpack proxy相当于浏览器和服务端中间添加一个代理者，本地发送请求，代理服务器响应请求，并将请求转发到目标服务器，目标服务器响应后将数据发送到代理服务器，再转到本地
+设置webpack proxy相当于浏览器和服务端中间添加一个代理者，本地发送请求，代理服务器将请求转发到目标服务器，目标服务器响应后将数据发送到代理服务器，再转到本地
 
 代理服务器和本地浏览器是同源的不会跨域，而代理服务器和目标服务器都是服务器也不会受浏览器的同源策略影响
 
@@ -272,11 +284,31 @@ hash值通常指构建生成的文件名中包含的哈希值，每次构建webp
 
 # gulp、grant和webpack的区别
 
-gulp、grant基于任务，对一个文件进行一系列链式操作，整条链式操作就是一个任务，多个任务就构成了整个构建流程。我们只需要定义任务，让gulp执行这些任务
+gulp、grant基于任务，对一个文件进行一系列链式操作，整条链式操作就是一个任务，多个任务就构成了整个构建流程。我们只需要定义任务，让它们执行这些任务
 
 webpack基于模块，它会根据入口，递归解析从入口找到的所有文件，用loader处理不同的文件
 
-类似于webpack的工具：vite、rollup
+
+
+# 与webpack类似的工具还有什么？有什么区别
+
+类似于webpack的工具：vite、rollup、parcel
+
+【gulp grunt只能称为构建工具，不算模块化工具，和webpack不太像】
+
+- rollup
+  
+  - es modules打包器，和webpack功能类似，但相比webpack更小巧
+  
+  - 默认支持tree shaking，不支持热更新
+  
+  - 相比webpack并不适合开发应用使用，因为rollup只支持es modules这种格式，如果应用中有第三方模块需要使用commonjs格式导入可能就需要插件来完成。但是rollup用于打包js库时比webpack更小更快
+
+- parcel
+  
+  - 不需要任何配置就可以直接使用
+  
+  - 不需要和webpack一样配置loader就能加载其他类型的资源文件
 
 # A、B 两个条件组件，如何做到 webpack 只打包条件为 true 的组件，false 的组件不打包
 

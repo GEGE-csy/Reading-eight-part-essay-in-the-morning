@@ -2,13 +2,13 @@
 
 ## 1.vue2 的响应式原理 / 双向数据绑定原理 ⭕️
 
-vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现响应式
+vuejs采用数据劫持结合了发布-订阅模式的方式来实现响应式
 
 - Observer监听器：递归遍历数据对象，利用Object.definePropety拦截每个属性，转成getter和setter，在getter中收集依赖(订阅者)，setter中通知订阅者更新视图
 
 - Compile解析器：解析模板指令，将模板变量替换为数据，给节点绑定更新函数
 
-- Dep和Watcher发布订阅模型：作为连接Observer和Compile的桥梁，Dep是发布者，Watcher是订阅者，getter中收集的依赖就是保存在Dep的一个列表里，每个属性变化时触发setter会通知Dep收集的所有Watcher，执行指令绑定的更新函数，从而更新视图【通知Watcher执行update()，update()将Watcher加入异步队列，等待执行Watcher的回调更新视图，Watcher记录了更新视图的函数】
+- Dep和Watcher发布订阅模型：作为连接Observer和Compile的桥梁，Dep是发布者，Watcher是订阅者，getter中收集的依赖就是保存在Dep的一个列表里，每个属性变化时触发setter会通知Dep收集的所有Watcher，执行节点绑定的更新函数，从而更新视图【通知Watcher执行update()，update()将Watcher加入异步队列，等待执行Watcher的回调更新视图，Watcher记录了更新视图的函数】
 
 ## 2.vue是如何收集依赖的 ⭕️
 
@@ -20,7 +20,7 @@ vuejs采用数据劫持结合了发布者-订阅者模式的方式来实现响�
 
 Observer类负责数据劫持，触发getter时调用dep的depend()收集依赖，触发setter时调用dep的notify()通知Watcher更新视图
 
-Dep类负责收集Watcher，有一个全局的静态属性Dep.target会跟踪当前正在执行的watcher，Dep的depend()会通知Dep.target保存的这个watcher订阅dep，notify()会遍历subs列表，通知watcher执行update()
+Dep类负责收集Watcher，有一个全局的静态属性Dep.target会跟踪当前正在执行的watcher，Dep的depend()会通知Dep.target保存的这个watcher订阅dep[调用watcher的addDep()]，notify()会遍历subs列表，通知watcher执行update()
 
 Watcher类负责订阅dep，addDep()会调用dep的addSub()，让dep收集当前的watcher加入subs列表，update()将watcher加入异步队列，等待调用watcher的回调更新视图
 
@@ -28,7 +28,7 @@ Watcher类负责订阅dep，addDep()会调用dep的addSub()，让dep收集当前
 
 ```js
 class Observer {
-    constructor() {
+    constructor(value) {
         if(Array.isArray(value)) {}    // 对数组的响应式处理
         else {    // 对对象的响应式处理
             this.walk(value)
@@ -91,13 +91,161 @@ class Watcher {
 ## 3.使用 Object.defineProperty()来进行数据劫持的缺点
 
 - 对象属性的增加删除无法监听到
-- 数组变化只能监听到部分重写了的方法，限制在 push、pop、shift、unshift、splice、sort、reverse
+- 数组下标更改和直接修改length无法监听到，只能监听到7个重写数组原型上的方法， push、pop、shift、unshift、splice、sort、reverse
 - 在代理嵌套层级很深的对象时需要一次性递归整个对象，可能会导致性能问题
 
 vue3 使用 proxy 实现数据劫持，可以监听到任何形式的数据改变，没有了这么多限制
 （proxy 代理的是整个对象，Object.defineProperty 代理的是属性）
 
 而且proxy实现了按需递归，只在访问到属性时才会递归，减少性能开销
+
+## vue2新增/删除属性为什么需要额外的api
+
+因为Object.definePropety监听属性，而不是监听对象
+
+vue2中的defineReactive()就是遍历对象的每个属性对它们进行响应式处理
+
+新增/删除属性的时候需要使用\$set/\$delete
+
+\$set的原理：使用defineReactive对新增的属性进行响应式处理，调用notify()通知watcher更新视图
+
+## Object.defineProperty 真的不能监听数组的变化吗？
+
+vue2对数组的监听是通过重写原型上的7个方法，为什么不使用Object.defineProperty?
+
+是因为 Object.defineProperty 真的不能监听数组的变化吗？
+
+Object.defineProperty 可以监听到下标变化，但无法监听到length变化
+
+为什么选择改写数组的方法来实现监听：
+
+数组元素太多时性能消耗太大
+
+## vue2中如何重写的数组方法
+
+1.创建了一个以原生Array的原型为原型的新对象
+
+2.为新对象添加了数组的重写方法
+
+3.将监听的对象的原型设置为这个新对象，被监听的对象调用数组方法的时候会使用被重写后的方法
+
+【思想和寄生式继承类似，使用Object.create(parent)创建新对象，在新对象上添加属性和方法】
+
+```js
+class Observer {
+    constructor(value) {
+        // 给已经代理过的对象添加一个__ob__属性，并且这个属性不可枚举，值指向这个实例
+        Object.defineProperty(value, '__ob__', {
+            enumerable: false,
+            value: this
+        })
+        if(Array.isArray(value)) {// 对数组的响应式处理
+            this.observeArray(value)
+        }    
+        else { 
+            this.walk(value) // 对对象的响应式处理
+        }
+    }
+    observeArray(arr) {
+        // 改变数组的原型链
+        arr.__proto__ = proxyPrototype
+        arr.forEach(item => {
+            observe(item)
+        })
+    }
+}
+function observe(data) {
+    ...
+    return new Observer(data)
+}
+```
+
+```js
+const oldPrototype = Array.prototype
+// 创建一个代理原型链
+const proxyPrototype = Object.create(oldPrototype)
+['push','pop','unshift','shift','reverse','sort','splice'].forEach(method => {
+    proxyPrototype[method] = function(...args) {
+        let ob = this.__ob__    // 拿到Observer实例
+        let insert // 记录新增元素
+        switch (method) {
+            case 'push':
+            case 'unshift':
+                insert = args
+                break
+            case 'splice':
+                insert = args.slice(2)
+                break
+            default:
+                break
+        }
+        // 对新增的元素进行响应式处理
+        insert && ob.observeArray(insert)
+        // 调用原生方法
+        const result = oldPrototype[method].apply(this, args)
+        return result
+    }
+})
+export default proxyPrototype
+```
+
+## vue3 的响应式原理
+
+使用proxy劫持了对象getter和setter，在getter中进行依赖收集，收集的依赖是数据变化后执行的副作用函数，在setter中执行收集的副作用函数
+
+(省略大部分)
+
+```js
+let activeEffect; // 存储注册的副作用函数
+
+/**
+ * target1 => depsMap: key1 => effect1、effect2...
+ *                     key2 => effect1、effect2...
+ * target2 => depsMap: key1 => effect1、effect2...
+ *                     key2 => effect1、effect2...
+ *                     (Set)---------------------
+ *            (Map)------------------------------
+ * (WeakMap)-------------------------------------
+ */
+const targetMap = new WeakMap(); // 存储副作用函数
+function effect(fn) {
+    // 注册副作用函数
+    activeEffect = fn;
+    fn();
+}
+const obj = new Proxy(data, {
+    get(target, key) {
+        track(target, key);
+        return Reflect.get(target, key);
+    },
+    set(target, key, val) {
+        Reflect.set(target, key, val);
+        trigger(target, key);
+    },
+});
+function track(target, key) {
+    // 拿到target相关的依赖Map
+    let depsMap = targetMap.get(target);
+    if (!depsMap) {
+        depsMap = new Map();
+        targetMap.set(target, depsMap);
+    }
+    // 拿到依赖Map中key对应的副作用函数集合
+    let deps = depsMap.get(key);
+    if (!deps) {
+        deps = new Set();
+        depsMap.set(key, deps);
+    }
+    if (!deps.has(activeEffect)) {
+        deps.add(activeEffect); // 将当前激活的副作用函数加入到集合中
+    }
+}
+function trigger(target, key) {
+    let depsMap = targetMap.get(target); // 拿到target相关的依赖Map
+    const effects = depsMap.get(key); // 拿到依赖Map中key对应的副作用函数集合
+    effects && effects.forEach(fn => fn());
+}
+```
 
 ## 4. 什么是 MVVM
 
@@ -130,7 +278,7 @@ MVVM、MVC、MVP 是三种常见的架构模式，都是为了解决 UI 界面�
   Model-View-Controller
   Model 代表数据模型，View 代表 UI 视图，
   Controller 控制器，用来连接 Model 和 View
-  用户和页面交互，触发 Controller，Controller 修改 Model，Model 再通知 View 更新
+  用户和页面交互，触发 Controller，Controller 更新 Model，Model 再通知 View 更新
 
 - MVP
   Model-View-Presenter
@@ -177,28 +325,45 @@ slot 就是插槽，一个标签元素
 在不同的组件中自定义插槽中的内容，可以更好实现对组件的复用
 
 插槽分三类：匿名插槽、具名插槽、作用域插槽
-匿名插槽：slot 不指定 name 属性，默认名字 default，一个组件只能有一个匿名插槽
-具名插槽：slot 指定了 name 属性，一个组件可以有多个具名插槽
-作用域插槽：因为z z插槽内容是在父组件的模板中被定义的，所以只能访问父组件的作用域，不能访问子组件的作用域，所以如果插槽内容需要子组件的数据，子组件可以将数据传递给父组件
 
-【子组件将数据作为一个属性绑定在 slot 元素上，比如`<slot :childData="data"></slot>`
+- 匿名插槽：slot 不指定 name 属性，默认名字 default，一个组件只能有一个匿名插槽
+
+- 具名插槽：slot 指定了 name 属性，一个组件可以有多个具名插槽
+
+- 作用域插槽：子组件可以在slot元素上绑定属性将传递给父组件，因为如果插槽内容需要子组件的数据，它是访问不到子组件的
+  
+  【插槽内容是在父组件的模板中被定义的，所以只能访问父组件的作用域，不能访问子组件的作用域】
+
+子组件：
+
+```html
+<slot :childData="data"></slot>
+```
+
 父组件中使用 v-slot(#)来获取数据】
 
 ```html
-<!-- Father.vue -->
-<child>
+<Child>
+<!-- 可以直接解构 <template #default="{ childData }">{{childData}}</template> --> 
     <template #default="slotProps"> {{ slotProps.childData }} </template>
-</child>
+</Child>
 ```
 
 (slotProps 包含了所有的插槽 prop，v-slot:后面接插槽的名字)
 
 ## 8. v-if 和 v-show 的区别
 
-- v-if 是动态向 DOM 树中添加或删除 DOM 元素，v-show 是通过设置 display 属性控制显示或隐藏
+- v-if 是通过向 DOM 树中添加或删除 DOM 元素控制显示或隐藏，v-show 是通过设置 display 属性控制显示或隐藏
 - v-if 切换有一个局部编译/卸载的过程，v-show 只是简单的 css 切换
 - v-if 首次渲染的时候如果条件为假什么都不做，v-show 首次渲染无论条件是真是假都会编译
 - v-if 切换性能消耗更大，v-show 初始渲染消耗更大
+- 需要频繁切换，v-show更好
+
+## v-if和v-for的优先级是什么
+
+vue2: v-for优先级高
+
+vue3: v-if优先级高
 
 ## 9.v-model 如何实现
 
@@ -219,21 +384,22 @@ v-bind绑定modelValue属性，并且触发事件的时候emit('update:modelValu
 
 ## 11.对 keep-alive 的理解 ⭕️
 
-keep-alive 是 vue 的一个内置组件
-它能在组件切换的时候保存组件状态，而不是直接销毁组件，避免反复渲染导致的性能问题
-有两个独立的生命周期 `activated` 和 `deactivated`，keep-alive 缓存的组件被激活时会执行`actived`，被停用时会执行`deactived`
+- keep-alive 是 vue 的一个内置组件
+  它能在组件切换的时候保存组件状态，而不是直接销毁组件，避免反复渲染导致的性能问题
+  有两个独立的生命周期 `activated` 和 `deactivated`，keep-alive 缓存的组件被激活时会执行`actived`，被停用时会执行`deactived`
+  
+  keep-alive 有三个属性：
+  include(字符串或正则表达)：名称匹配的组件会被缓存
+  exclude(字符串或正则表达)：名称匹配的组件都不会被缓存
+  max(数字)：最多可以缓存多少组件
+  
+  keep-alive默认使用LRU缓存策略，当缓存达到最大限制时，会自动销毁最久未使用的组件实例
 
-keep-alive 有三个属性：
-include(字符串或正则表达)：名称匹配的组件会被缓存
-exclude(字符串或正则表达)：名称匹配的组件都不会被缓存
-max(数字)：最多可以缓存多少组件
+- 使用场景：tab页切换保存切换前状态
 
-keep-alive默认使用LRU缓存策略，当缓存达到最大限制时，会自动销毁最久未使用的组件实例
+- 原理：keep-alive 利用cache对象和keys数组存储和管理组件实例，cache中存储的是组件实例对应的虚拟dom。当一个组件被缓存的时候，会将其对应的虚拟节点存储到cache对象，并通过一个key来标识。组件被激活时再将虚拟节点从 cache 对象中取出并渲染
 
-原理：
-vue 内部将 DOM 节点抽象成了一个个的虚拟节点，keep-alive 的缓存也是基于虚拟节点的，不是直接存储 DOM 结构，它将需要缓存的组件存在 cache 对象中，需要渲染时再将虚拟节点从 cache 对象中取出并渲染
-
-## 12.nextTick原理及作用 ⭕️
+## 12. 说说对 nextTick 的理解 ⭕️
 
 `nextTick`是 vue 提供的一个 api，可以在`nextTick`里获取更新后的 DOM
 vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个队列，并缓冲在同一事件循环中发生的所有数据变更，这是为了去除重复的不必要的dom操作和计算。然后在下一个事件循环中，vue才会执行工作。调用nextTick()，传入的回调函数会被添加到这个队列中，因此可以保证nextTick()中能拿到最新的dom结构
@@ -243,11 +409,23 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 - 在修改数据后，立刻就想操作这个跟着数据变化的 DOM 结构，这个操作就要放在`nextTick`里
 - 在`created()`生命周期进行 DOM 操作，也要放在`nextTick`里
 
-## 13.单页应用和多页应用的区别 ⭕️
+实现原理：
+
+1. nextTick() 将收到的回调函数压入一个 callbacks 数组保存
+
+2. **判断在当前环境下应该使用哪种异步延迟函数来执行回调**，将回调放到微任务或宏任务中，优先微任务【判断当前环境是否支持promise => 是否支持MutationObserver 】，如果不支持则降级为宏任务 【判断是否支持setImmediate() => 上述都不满足使用setTimeout()】
+
+3. 等事件循环到了微任务或宏任务，依次调用回调
+
+【 MutationObserver用于异步监视DOM中发生的变化，在变化时执行指定的回调 】
+
+[[面试官：Vue中的$nextTick有什么作用？ | web前端面试 - 面试官系列](https://vue3js.cn/interview/vue/nexttick.html#%E4%B8%89%E3%80%81%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86)]
+
+## 13.单页应用 SPA 和多页应用 MPA 的区别 ⭕️
 
 单页应用 SPA：
 
-- 只有一个主页面的应用，只需要初始加载一次 js、css 等资源
+- 只有一个主页面，只需要初始加载一次 js、css 等资源
 
 - 跳转页面只会刷新局部资源
 
@@ -255,11 +433,56 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 多页应用 MPA：
 
-- 有多个独立页面的应用，每个页面都要重复加载 js、css 等资源
+- 有多个主页面，每个页面都要重复加载 js、css 等资源
 
 - 跳转页面需要刷新整页的资源
 
 - 适用场景：对 SEO 要求高
+
+## SPA首屏加载慢如何解决
+
+1. 减少资源大小
+   
+   - 压缩图片资源、压缩代码
+   
+   - 配置gzip压缩
+
+2. 减少http请求次数
+   
+   - 缓存静态资源
+
+3. 提高http请求响应速度
+   
+   - 静态资源部署cdn
+
+4. 优化资源加载时机
+   
+   - 第三方ui框架按需加载
+   
+   - 路由懒加载减小入口文件体积，把不同路由对应的组件分割成不同代码块，路由被请求的时候会单独打包，使入口文件变小，加载速度快
+
+5. 优化页面渲染
+   
+   - 优化js：放body后、异步加载
+- 使用ssr
+
+## 对SPA的理解，它的优缺点分别是什么？⭕️
+
+只有一个主页面的应用，它在加载完初始页面后，只会动态更新页面内容，不会重新加载整个页面
+
+优点：
+
+- 用户体验好。用户和页面交互都是异步加载数据，更新部分内容，不需要重新加载整个页面
+
+- 降低服务器负载。加载初始页面后，后续不再需要重新加载整个页面
+
+- 前后端松耦合。spa 通常采用前后端分离开发。前端负责页面渲染和交互，后端负责处理数据和业务逻辑
+
+缺点：
+
+- 首屏加载速度慢，首次需要加载大量html、js、css等资源
+
+- SEO难度大，页面上的内容大部分是js动态渲染出来的，爬虫爬取几乎不到什么内容
 
 ## 14.vue 模板编译原理
 
@@ -286,6 +509,34 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 使用案例：实现图片懒加载，使用第三方库，按钮权限控制
 
+## vue常用的修饰符有哪些？有什么使用场景
+
+- stop
+  
+  阻止事件冒泡，相当于调用 event.stopPropagation()
+
+- prevent
+  
+  阻止事件默认行为，相当于调用 evnet.preventPropagation()
+
+- self
+  
+  仅当evnet.target是当前元素自身时才触发函数
+  
+  `<div @click.self="handleClick"></div>`
+  
+  【`@click.self.prevent` 只会阻止元素自身的默认行为】
+  
+  【`@click.prevent.self` 会阻止所有元素的默认行为】
+
+- once
+  
+  绑定的事件只会触发一次
+
+- native
+  
+  监听组件的原生事件
+
 ## 17. 子组件可以直接修改父组件的数据吗？
 
 不可以
@@ -297,8 +548,6 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 - 新定义一个 data，初始化为 prop 值
 - 新定义一个计算属性，处理 prop 值
-
-
 
 ## 18. vue 的优点
 
@@ -315,9 +564,9 @@ static 中的资源不会被打包压缩优化
 
 建议：自己的静态资源放在 assets 中，第三方资源放在 static 中
 
-## 20. 什么是mixin？
+## 20. 说说对 mixin 的理解
 
-如果希望在多个组件之间复用一套组件选项，例如生命周期、方法、data等，就可以把它编写成mixin，然后在组件中使用mixin选项混入，mixin中的内容会合并到组件中
+mixin本质上是一个js对象，如果希望在多个组件之间复用一套组件选项，例如生命周期、方法、data等，就可以把它编写成mixin，然后在组件中使用mixin选项混入，mixin中的内容会合并到组件中
 
 缺点：
 
@@ -367,7 +616,7 @@ SEO层面：
 - 压缩代码
 - tree shaking/scope hoisting【移除未使用的代码/合并模块间的代码作用域】
 - thread-loader多线程打包【将任务拆分成多个子线程并行处理，加快打包速度】
-- splitChunks抽离公共代码
+- splitChunks代码分割【将代码分割成更小的块，减少首次加载时间，还能实现按需加载】
 
 用户体验：
 
@@ -400,23 +649,114 @@ web应用性能的两个主要方面：
   1. 大型列表-使用虚拟列表
   2. 减少深层不可变数据的响应性开销-
 
-## 对SPA的理解，它的优缺点分别是什么？⭕️
+## vue中组件和插件的区别
 
-只有一个主页面的应用，它在加载完初始页面后，只会动态更新页面内容，不会重新加载整个页面
+- 组件是把一部分逻辑抽取出来，方便我们进行复用、降低代码耦合度、快速定位错误
+  
+  插件通常给vue添加全局功能：全局方法/属性、全局资源、vue实例方法
 
-优点：
+- 编写上不同：
+  
+  **组件通常使用.vue单文件编写**，具有<template> <script> <style>等模块
+  
+  **插件的实现需要暴露一个`install`方法**
+  
+  (vue2写法)
+  
+  ```js
+  // 参数1是Vue实例构造函数，参数2配置项
+  MyPlugin.install = function (Vue, options) {
+      // 添加全局方法
+      Vue.myGlobalMethod = function () {}
+      // 添加实例方法
+      Vue.prototype.$myMethod = function () {}
+  }
+  ```
+  
+  (vue3写法)
+  
+  ```js
+  // /src/plugins/xxx.js
+  export default {
+      // 参数1是createApp()生成的vue实例
+      install: (app, options) => {}
+  }
+  ```
 
-- 用户体验好。加载初始页面后，后续的页面切换都是通过异步加载数据更新内容实现的，用户感知到的延迟较小
+- 注册方式不同：  
+  **组件分为全局注册和局部注册**
+  
+  全局：2Vue.component() 3createApp().component()
+  
+  局部：2components选项 3script setup中直接导入无需注册/否则components选项
+  
+  **插件通过`use()`方法注册**
+  
+  use()会自动阻止多次注册相同插件，只会注册一次
+  
+  ```js
+  Vue.use(插件名，{ 配置项 }) // v2
+  
+  app.use(插件名，{ 配置项 }) // v3
+  ```
 
-- 降低服务器负载。加载初始页面后，后续不再需要重新加载整个页面，降低了服务器负载
+## vue权限管理要怎么做？如果控制到按钮级别的权限怎么做？
 
-- 通常采用前后端分离开发。前端负责页面渲染和交互，后端负责处理数据和业务逻辑，降低了耦合度
+- 路由权限设置
+  
+  用户访问无权限的页面，跳转登录页
+  
+  - 在全局前置守卫中检查要访问的路由是否有权限限制(配置meta属性)，有权限限制的话有无token，无token跳转到登录页
 
-缺点：
+- 接口权限设置
+  
+  接口访问无权限一般返回401，跳转登陆页
+  
+  - 在请求拦截器中将token添加到请求头，在响应拦截器中判断状态码决定是否跳转到登录页
 
-- 首屏加载速度慢，首次需要加载大量html、js、css等资源
+- 菜单权限设置
+  
+  不同级别的用户看到不同菜单
+  
+  - 一般是后端根据token或者某个值返回该级别用户的菜单，渲染到页面就行
 
-- SEO难度大，页面上的内容大部分是js动态渲染出来的，爬虫爬取几乎不到什么内容
+- 按钮权限设置
+  
+  根据不同的用户，显示或隐藏按钮
+  
+  - 在路由配置meta属性，新建自定义指令，判断该用户能看到该页面的哪些按钮
+    
+    ```js
+    {
+        path: 'home',
+        meta: { // 定义home页面具有的btn
+            btnPermission: ['admin']
+        }
+    }
+    ```
+    
+    app.directive('has', {
+    
+        mounted(el) {
+            const permissions = ....meta.btnPermissions
+            // 获取当前用户的按钮权限
+            const btnPermission = localStorage.getItem(role)
+            if(!permission.includes(btnPermission)) {
+                if (el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            }
+        }
+    
+    })
+    
+    <button type="button" v-has>管理员按钮</button>
+    
+    ```
+    
+    ```
+
+        
 
 # 生命周期
 
@@ -430,7 +770,7 @@ vue 实例创建时会经过一系列初始化过程
 
 创建阶段：（vue3 中没有这两个，只能放在 setup()里）
 
-- beforeCreate：vue 实例创建前，data 和 methods 等options还没初始化
+- beforeCreate：vue 实例创建初(已创建)，data 和 methods 等options还没初始化
 - created：vue 实例创建完，data 和 methods 等options已经初始化
 
 挂载阶段：
@@ -484,7 +824,7 @@ vue 实例创建时会经过一系列初始化过程
 
 created()在组件实例创建完成时立刻调用
 
-mounted()在页面节点渲染完后立刻执行
+mounted()在页面节点渲染完后立刻调用
 
 放在mounted中的请求有可能导致页面闪动，因为此时页面dom结构已经生成
 
@@ -589,7 +929,7 @@ $router是全局的路由实例对象，包含路由跳转方法、钩子函数�
 
    配置路由：/router/:id
 
-   路由跳转：router.push({ params: { id: 1 } })
+   路由跳转：router.push({ name: xxx, params: { id: 1 } })
 
    路径：/router/1
 
@@ -599,7 +939,7 @@ $router是全局的路由实例对象，包含路由跳转方法、钩子函数�
   
   配置不用变
   
-  路由跳转：router.push({ query: { id: 1 } })
+  路由跳转：router.push({ path: xxx, query: { id: 1 } })
   
   路径：/router?id=1
   
@@ -657,27 +997,19 @@ vuex是一种状态管理模式
 
 并且vuex的状态存储是响应式的，组件从store中读取数据的时候，如果数据发生了改变，组件也会更新
 
-Vuex的核心流程：
+主要解决的问题：多界面的状态管理【单界面状态管理非常简单，vue已经实现了】
 
-vue组件会触发一些动作，也就是actions
+1. 多个界面依赖同一个状态，一个状态改变了多个界面都需要更新
 
-在组件中发出的动作，肯定是想获取或改变数据，但vuex中不能直接更改数据
+2. 不同界面的行为要改变同一个状态
 
-所以会把这个动作提交到mutations中，让mutations去修改state中的数据
+如何解决问题：vuex使用**单一状态树**来管理所有的状态，每个应用只有一个store实例
 
-当state中的数据被改变，就会重新渲染到组件中，完成一个流程
+单一状态树使我们更轻松管理应用状态，好比一个大仓库，把东西集中管理
 
-Vuex的几大属性：
+Vuex的核心流程：（单向数据流）
 
-- state：存储公共管理的数据
-
-- getters：类似于计算属性，对state进行加工
-
-- mutations：修改state的唯一推荐方法，该方法只能进行同步操作
-
-- actions：用来提交mutation，可以进行异步操作
-
-- modules：模块化vuex，每个模块都有自己的state、getters、mutations、actions
+组件会触发actions => actions提交mutations => mutations修改state => 组件重新渲染
 
 ## 2. Vuex中action和mutation的区别
 
@@ -745,7 +1077,7 @@ export default {
 - 使用 proxy 实现数据监听，可以监听到任何形式的数据改变，没有 Object.defineProperty 的很多限制
 - composition 组合式 api
   vue2 中的 options，一个功能被分割到了 data、methods、computed 里，导致耦合度高难维护，vue3 的组合式 api 会把一个功能的代码放一起
-- 优化了虚拟 DOM 的 diff 算法，对新旧虚拟节点进行类型比较，还可以跳过不同类型的节点的比较，还引入了静态树提升，能将静态子树缓存起来，避免重复的比较
+- 优化了虚拟 DOM 的 diff 算法，增加了patch flags更新类型标记，通过更新类型标记能够用最小化操作实现更新。还引入了静态树提升，对于不参与更新的元素只会被创建一次，在渲染时直接复用
 - 生命周期钩子，去掉了 beforeCreate 和 created，增加了 setup，beforeDestroy 和 destroyed 也改名为 onBeforeUnmount 和 onUnmounted，并且所有的钩子都要放在 setup 里
 - 基于 tree-shaking 摇树优化，重构了一些 api，减小了代码量（比如 vue2 中的 Vue. nextTick 没有用到也会打包进来，vue3 就是只有引入进来的会打包）
 - 新的组件 Fragment、Teleport、Suspense
