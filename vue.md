@@ -8,7 +8,7 @@ vuejs采用数据劫持结合了发布-订阅模式的方式来实现响应式
 
 - Compile解析器：解析模板指令，将模板变量替换为数据，给节点绑定更新函数
 
-- Dep和Watcher发布订阅模型：作为连接Observer和Compile的桥梁，Dep是发布者，Watcher是订阅者，getter中收集的依赖就是保存在Dep的一个列表里，每个属性变化时触发setter会通知Dep收集的所有Watcher，执行节点绑定的更新函数，从而更新视图【通知Watcher执行update()，update()将Watcher加入异步队列，等待执行Watcher的回调更新视图，Watcher记录了更新视图的函数】
+- Dep和Watcher发布订阅模型：作为连接Observer和Compile的桥梁，Dep是发布者，Watcher是订阅者，getter中收集的依赖就是保存在Dep的一个列表里，每个属性变化时触发setter会通知Dep收集的所有Watcher，执行update()更新视图
 
 ## 2.vue是如何收集依赖的 ⭕️
 
@@ -20,9 +20,9 @@ vuejs采用数据劫持结合了发布-订阅模式的方式来实现响应式
 
 Observer类负责数据劫持，触发getter时调用dep的depend()收集依赖，触发setter时调用dep的notify()通知Watcher更新视图
 
-Dep类负责收集Watcher，有一个全局的静态属性Dep.target会跟踪当前正在执行的watcher，Dep的depend()会通知Dep.target保存的这个watcher订阅dep[调用watcher的addDep()]，notify()会遍历subs列表，通知watcher执行update()
+Dep类负责收集Watcher，有一个全局的静态属性Dep.target会跟踪当前正在执行的watcher，Dep的depend()会通知Dep.target保存的这个watcher订阅dep【调用watcher的addDep()】，notify()会遍历subs列表，通知watcher执行update()
 
-Watcher类负责订阅dep，addDep()会调用dep的addSub()，让dep收集当前的watcher加入subs列表，update()将watcher加入异步队列，等待调用watcher的回调更新视图
+Watcher类负责订阅dep，addDep()会调用dep的addSub()，让dep收集当前的watcher加入subs列表，update()更新视图【将要更新的任务放入待更新队列】
 
 【省略大部分】
 
@@ -83,7 +83,7 @@ class Watcher {
         dep.addSub(this)
     }
     update() {
-       queueWatcher(this) // 加入异步更新队列
+       queueWatcher(this) // 加入待更新队列
     }
 }
 ```
@@ -92,7 +92,7 @@ class Watcher {
 
 - 对象属性的增加删除无法监听到
 - 数组下标更改和直接修改length无法监听到，只能监听到7个重写数组原型上的方法， push、pop、shift、unshift、splice、sort、reverse
-- 在代理嵌套层级很深的对象时需要一次性递归整个对象，可能会导致性能问题
+- 在代理嵌套层级很深的对象时会在一开始就递归整个对象，可能会导致性能问题
 
 vue3 使用 proxy 实现数据劫持，可以监听到任何形式的数据改变，没有了这么多限制
 （proxy 代理的是整个对象，Object.defineProperty 代理的是属性）
@@ -193,6 +193,16 @@ export default proxyPrototype
 
 使用proxy劫持了对象getter和setter，在getter中进行依赖收集，收集的依赖是数据变化后执行的副作用函数，在setter中执行收集的副作用函数
 
+在weakmap中存储，key是目标对象target，value是对应的依赖的map
+
+map的key是target中的key，value是副作用函数的集合
+
+检查weakmap中有没有key为目标对象对应的依赖map，有就取出没有就创建map
+
+取出map后再检查有没有key为目标属性对应的副作用函数set，有就取出没有就创建set
+
+然后将当前正在执行的副作用函数activeEffect加入到副作用函数set
+
 (省略大部分)
 
 ```js
@@ -250,8 +260,12 @@ function trigger(target, key) {
 ## 4. 什么是 MVVM
 
 MVVM 分为 Model、View、ViewModel
-Model 代表数据模型，View 代表 UI 视图，ViewModel 负责监听 Model 中数据的改变并控制 View 视图的更新
-Model 中的数据会绑定到 ViewModel，当数据改变时会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改
+Model 代表数据模型，View 代表 UI 视图，
+
+ViewModel 视图模型，它通过双向数据绑定将view和model联系起来
+
+它会监听数据的改变并通知视图更新，当用户交互引起视图变化的时候也会通知数据进行同步更新
+
 以前是操作 DOM 更新视图，现在是数据驱动视图
 
 ## MVVM的优缺点 ⭕️
@@ -260,15 +274,15 @@ Model 中的数据会绑定到 ViewModel，当数据改变时会触发 View 的�
 
 - 分离了视图逻辑和业务逻辑，降低了代码耦合，更容易维护扩展
 
-- 提高了可测试性，视图逻辑和业务逻辑分开，更容易进行单元测试
-
 - 提高开发效率，数据驱动视图，开发者无需手动操作dom，可以更专注于业务逻辑
+
+- 提高了可测试性，视图逻辑和业务逻辑分开，更容易进行单元测试
 
 缺点：
 
 - bug很难被调试，页面异常可能是view有问题，也可能是model有问题
 
-- 对于过大的项目，数据绑定会导致内存开销大，影响性能【只将必要的数据绑定到视图上，减少不必要的更新】
+- 大的模块中model可能很大，长期留在内存中损耗性能
 
 ## 5. MVVM、MVC、MVP 的区别 ⭕️
 
@@ -277,46 +291,71 @@ MVVM、MVC、MVP 是三种常见的架构模式，都是为了解决 UI 界面�
 - MVC
   Model-View-Controller
   Model 代表数据模型，View 代表 UI 视图，
-  Controller 控制器，用来连接 Model 和 View
-  用户和页面交互，触发 Controller，Controller 更新 Model，Model 再通知 View 更新
+  Controller 逻辑层，view传递信息给controller，controller对model层的数据进行业务逻辑处理，model将新数据发送给view，view才能更新
+  
+  【用户可以直接向view发指令（dom事件），再由通知controller。用户也可以直接向controller发指令】
+  
+  问题：**mvc中的通信是单向的，view层会从model层拿数据，view和model存在耦合**
+  
+  通信方向：view -> controller -> model -> view
 
 - MVP
   Model-View-Presenter
   Model 代表数据模型，View 代表 UI 视图，
   Presenter 表示器
   
-  MVP和MVC唯一不同在于Presenter和Controller
-  MVC 中 Controller 只知道 Model 的接口，没办法控制 View 的更新，只能让 Model 数据变化时通知 View 更新，Model 层和 View 层耦合在一起，项目逻辑复杂时可能造成代码混乱
-  MVP 中 View 的接口暴露给了 Presenter，可以在 Presenter 中将 Model 和 View 的变化绑定在一起，通过 Presenter 实现 Model 层和 View 层的解耦
+  **MVP和MVC的不同：**
+  
+  MVC 中 view层会直接从model层读取数据，model 层和 view 层耦合在一起，而 MVP中 view 和 model 是不通信的，他们向外暴露接口让presenter调用
+  
+  通信方向：view -> presenter -> model, model -> presenter -> view
+  
+  **问题：view和presenter之间通过接口交互，交互过于频繁，存在耦合**
 
 - MVVM
   Model-View-ViewModel
   Model 代表数据模型，View 代表 UI 视图，
-  ViewModel 负责监听 Model 中数据的改变并控制 View 视图的更新
-  Model 数据改变会触发 View 的更新，View 中因为用户交互而改变的数据也会在 Model 中同步更改，
-  相较于 MVP 采用了数据双向绑定，实现了 Model 和 View 的数据自动同步
+  ViewModel 视图模型，viewmodel通过双向数据绑定将view和model联系起来，
+  
+  **它能监听数据的改变并通知视图更新，当用户操作视图它也能监听到视图变化然后通知数据同步改变**
+  
+  **相较于 MVP 实现了双向数据绑定，不需要手动将数据同步到视图，而是实现了 Model 和 View 的数据自动同步**【将手动数据同步到视图的操作自动化】
+
+- 总结：
+  
+  mvc将应用抽象成了model数据层、view视图层、controller逻辑层。mvc中的通信是单向的，view层会从model层拿数据，view和model之间存在耦合。
+  
+  mvp中view和model是不通信的，它们向外暴露接口给presenter，通过presenter联系，实现了view和model的解耦。但view和presenter之间通过接口交互过于频繁，存在耦合。
+  
+  而mvvm相较于mvp，它实现了双向数据绑定，不需要我们手动将数据同步到视图，而是实现了model和view的数据自动同步
+  
+  [前端面试题：MVC、MVP、MVVM的区别？ - 掘金](https://juejin.cn/post/7076631766856892423?from=search-suggest)
+  
+  [MVC、MVP、MVVM、MVI架构 - 掘金](https://juejin.cn/post/7291837510119702563?searchId=202403192333016A42A2103447B0B9F9FC#heading-1)
 
 ## 6.Computed 和 Watch 的区别
 
 computed
 
-- 支持缓存，只有依赖的数据发生了变化，才会重新计算
+- 支持缓存，依赖的数据变化时才会重新计算，否则会返回原来缓存的值
 - 不支持异步，computed 中有异步操作的时候，无法监听数据的变化
 - 一开始就会执行一次
 
 watch
 
-- 不支持缓存，数据变化时就触发相应操作
+- 不支持缓存，依赖的数据变化时才会执行监听函数，否则不执行
 - 支持异步监听
 - 一开始默认不执行，除非设置 immediate 为 true
 
 应用场景：
-当要进行数值计算，并且依赖其他数据时，使用 computed，可以利用缓存特性，避免每次获取值都要重新计算
-当要在数据变化时执行异步操作时，使用 watch
+
+computed主要用于计算和获取一些数据，利用缓存特性能避免每次获取值都要重新计算
+
+watch主要用于监听数据变化并执行一些操作
 
 ## 6. Computed 和 Methods 的区别
 
-computed 是有缓存的，依赖数据变化了才会重新计算，methods 每次调用都会执行
+computed 是支持缓存的，依赖数据变化了才会重新计算，methods 每次调用都会执行
 
 ## 7. slot 是什么？有什么作用？
 
@@ -402,7 +441,7 @@ v-bind绑定modelValue属性，并且触发事件的时候emit('update:modelValu
 ## 12. 说说对 nextTick 的理解 ⭕️
 
 `nextTick`是 vue 提供的一个 api，可以在`nextTick`里获取更新后的 DOM
-vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个队列，并缓冲在同一事件循环中发生的所有数据变更，这是为了去除重复的不必要的dom操作和计算。然后在下一个事件循环中，vue才会执行工作。调用nextTick()，传入的回调函数会被添加到这个队列中，因此可以保证nextTick()中能拿到最新的dom结构
+vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个队列，并缓存在同一事件循环中发生的所有数据变更，这是为了去除重复的不必要的dom操作和计算。**等到同一事件循环中的所有数据变化完，才会执行队列中的操作**。调用nextTick()，传入的回调函数会被添加到这个队列中，因此可以保证nextTick()中能拿到最新的dom结构
 
 使用场景：
 
@@ -411,9 +450,9 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 实现原理：
 
-1. nextTick() 将收到的回调函数压入一个 callbacks 数组保存
+1. nextTick() 将收到的回调函数放入 callbacks 数组等待执行【callbacks就是上面所说的队列】
 
-2. **判断在当前环境下应该使用哪种异步延迟函数来执行回调**，将回调放到微任务或宏任务中，优先微任务【判断当前环境是否支持promise => 是否支持MutationObserver 】，如果不支持则降级为宏任务 【判断是否支持setImmediate() => 上述都不满足使用setTimeout()】
+2. 根据当前环境选择使用微任务或者宏任务来执行回调，优先微任务【判断当前环境是否支持promise => 是否支持MutationObserver 】，如果不支持则降级为宏任务 【判断是否支持setImmediate() => 上述都不满足使用setTimeout()】
 
 3. 等事件循环到了微任务或宏任务，依次调用回调
 
@@ -450,6 +489,7 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 2. 减少http请求次数
    
    - 缓存静态资源
+   - 小图使用base64【图片数据直接嵌入到文件中不需要单独的请求来获取图片】
 
 3. 提高http请求响应速度
    
@@ -458,6 +498,8 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 4. 优化资源加载时机
    
    - 第三方ui框架按需加载
+   
+   - 不关键的资源懒加载，关键资源预加载
    
    - 路由懒加载减小入口文件体积，把不同路由对应的组件分割成不同代码块，路由被请求的时候会单独打包，使入口文件变小，加载速度快
 
@@ -488,7 +530,7 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 模板编译：将 vue 中的模板 template 转化为 render 函数
 
-1. 调用parse()，将template转为抽象语法树 ast
+1. 调用parse()，将template解析生成抽象语法树 ast
 2. 遍历 ast，标记静态节点，在页面重渲染的时候直接跳过这些静态节点
 3. 调用generate()，将 ast 编译成render字符串，生成 render 函数
 
@@ -500,14 +542,21 @@ vue 更新 DOM 是异步执行的，侦听到数据变化，vue会开启一个�
 
 ## 16. 描述 vue 自定义指令
 
-需要对 普通 DOM 元素进行底层操作的时候，就可以用到自定义指令
+当所需功能只能通过直接操作 DOM 元素来实现，才应该使用自定义指令
 
-分为全局指令和局部指令
-全局：在 main.js 中用 Vue.directive()注册，参数 1 是指令名称，参数 2 是包含一些类似生命周期钩子的对象，钩子会将指令绑定的元素作为参数，在触发时执行
+自定义指令是一个包含类似组件生命周期钩子的对象
 
-局部：在 options 选项中设置 directive 属性，是一个对象，以指令名称作为 directive 对象的属性，指令名称是包含一些类似生命周期钩子的对象
+钩子函数能接收到el、binding、vnode、preVnode参数
+
+el是指令绑定的元素，可以用于直接操作dom，binding.value可以拿到传递给指令的值
 
 使用案例：实现图片懒加载，使用第三方库，按钮权限控制
+
+[自定义指令 | Vue.js](https://cn.vuejs.org/guide/reusability/custom-directives.html#custom-directives)
+
+## 自定义指令的执行时机
+
+自定义指令在运行时解析并执行的，【内置指令在编译时就解析了】
 
 ## vue常用的修饰符有哪些？有什么使用场景
 
@@ -571,25 +620,25 @@ mixin本质上是一个js对象，如果希望在多个组件之间复用一套�
 缺点：
 
 - 多个mixin中相同的属性、方法之类的，会造成命名冲突
-- 增加耦合度
+- 无法知道数据来源于哪个mixin
 
 mixin的生命周期会比组件自己的生命周期先执行，组件可以覆盖
 
 ## 21.对 ssr 的理解
 
 ssr 就是服务端渲染
-在服务端渲染 html，再把 html 返回给客户端
+ssr在服务端渲染 html，再把 html 返回给客户端
 
-【传统的csr中，是在浏览器端完成对html的渲染】
+传统的csr中，是在浏览器端完成对html的渲染
 
 优点：
 
 - 更好的 seo
-- 首屏加载速度更快
+- 首屏加载速度更快，因为浏览器可以更快地获取到完整的html
 
 缺点：
 
-- 服务端压力较大
+- 服务器负载增加，在服务端渲染html可能会增加服务器的负载
 - 开发和部署难度变大
 
 ## 22.vue 的性能优化有哪些 ⭕️
@@ -651,7 +700,7 @@ web应用性能的两个主要方面：
 
 ## vue中组件和插件的区别
 
-- 组件是把一部分逻辑抽取出来，方便我们进行复用、降低代码耦合度、快速定位错误
+- 组件是把一部分功能的逻辑抽取出来，方便我们进行复用、降低代码耦合度、快速定位错误
   
   插件通常给vue添加全局功能：全局方法/属性、全局资源、vue实例方法
 
@@ -722,41 +771,31 @@ web应用性能的两个主要方面：
 
 - 按钮权限设置
   
-  根据不同的用户，显示或隐藏按钮
+  根据用户的身份信息来判断显示或隐藏按钮
   
-  - 在路由配置meta属性，新建自定义指令，判断该用户能看到该页面的哪些按钮
-    
-    ```js
-    {
-        path: 'home',
-        meta: { // 定义home页面具有的btn
-            btnPermission: ['admin']
-        }
-    }
-    ```
-    
-    app.directive('has', {
-    
-        mounted(el) {
-            const permissions = ....meta.btnPermissions
-            // 获取当前用户的按钮权限
-            const btnPermission = localStorage.getItem(role)
-            if(!permission.includes(btnPermission)) {
-                if (el.parentNode) {
-                    el.parentNode.removeChild(el);
-                }
-            }
-        }
-    
-    })
-    
-    <button type="button" v-has>管理员按钮</button>
-    
-    ```
-    
-    ```
+  <script setup>中任何以 v开头的驼峰式命名的变量都可以被用作一个自定义指令
+  
+  否则就要在directives选项注册
 
-        
+```html
+<div class="container">
+    <!-- 用户的身份信息 -->
+    <button v-permission="['admin', 'apadmin']">admin权限按钮</button>
+</div>
+
+<script setup>
+
+const vPermission = (el, binding) => {
+    // 获取角色数组
+    const roles = binding.value;
+    if (!roles.includes('admin')) {
+        el.remove();
+    }
+}
+<script>
+```
+
+          
 
 # 生命周期
 
@@ -773,7 +812,7 @@ vue 实例创建时会经过一系列初始化过程
 - beforeCreate：vue 实例创建初(已创建)，data 和 methods 等options还没初始化
 - created：vue 实例创建完，data 和 methods 等options已经初始化
 
-挂载阶段：
+挂载阶段：[模板编译成render函数生成vnode，转为真实dom插入到页面中]
 
 - beforeMount：模板已经编译完，还未挂载到页面上
 - mounted：模板已经挂载到页面上【用编译好的内容替换el属性指向的DOM对象】，此时可以操作 DOM
@@ -792,6 +831,10 @@ vue 实例创建时会经过一系列初始化过程
 
 - activated：keep-alive 缓存的组件被激活时
 - deactivated：keep-alive 缓存的组件被停用时
+
+## vue实例挂载的过程经历了什么
+
+[面试官：谈谈Vue实例挂载的过程 - 掘金](https://juejin.cn/post/7049696384110297119?searchId=2024032101085682BC5879A3E23032109C)
 
 ## 2. vue 子组件和父组件执行顺序
 
@@ -824,7 +867,7 @@ vue 实例创建时会经过一系列初始化过程
 
 created()在组件实例创建完成时立刻调用
 
-mounted()在页面节点渲染完后立刻调用
+mounted()在组件渲染到页面后立刻调用
 
 放在mounted中的请求有可能导致页面闪动，因为此时页面dom结构已经生成
 
@@ -1144,43 +1187,39 @@ vue3中组合式api能更方便我们去封装hooks来实现逻辑复用
 
 而且虚拟dom本质上是为了提高我们的开发效率，在更新节点时，会检查哪些节点需要更新，尽量复用节点，这些操作我们也可以手动操作来实现，但是会耗费我们的精力。
 
-## 4. diff 算法的原理 ⭕️
+## 4. vue2 diff 算法的原理 ⭕️
 
-简单来说就是对着虚拟 DOM 树从上到下进行同层对比
-
-<!-- 在对比新旧虚拟 DOM 时，
-先对比节点本身，判断是否为相同节点，如果不相同就删除该节点重新创建节点
-
-- 如果是相同节点，就要继续判断双方是否都有子节点，
-  - 如果新节点没有子节点，就将旧节点移除
-  - 如果新节点有子节点，就给旧节点添加新的子节点
-  - 如果都有子节点，就继续判断如何对子节点进行操作，递归比较所有子节点 -->
-
-1. dep.notify()通知订阅者watcher，使用patch(oldvnode,newvnode)接收新旧虚拟节点，先比较是否是同类标签，不是同类标签则直接替换，是则执行patchVnode()
-
-2. patchVnode()比较新旧节点是否相等【比较 tag 和 key】
+1. 使用patch(oldvnode,newvnode)接收新旧虚拟节点，先判断如果新虚拟节点不存在但旧虚拟节点存在，则销毁旧虚拟节点并返回。
    
-   相等 => 直接return
+   再判断旧虚拟节点是否存在，如果旧虚拟节点不存在，则说明是首次渲染，就创建新的dom元素插入。如果旧虚拟节点存在，且调用sameVnode()和新虚拟节点比较相同，则执行patchVnode()
    
-   不相等 => 新旧都有文本节点 => 新文本替换旧文本
+   【sameVnode主要比较key和tag】
+   
+   如果旧虚拟节点和新的不同，则创建一个空节点作为旧的虚拟节点，创建新的虚拟节点对应的dom元素插入
 
-         => 旧没有子节点，新有子节点 => 增加新的子节点
+2. patchVnode()首先比较新旧虚拟节点，如果是同一个节点，直接返回
+   
+   如果不是，比较新旧虚拟节点的子节点：
+   
+   - 新旧都有子节点且子节点不相同 => 调用updateChildren()
+   
+   - 旧没有子节点，新有子节点 => 增加新的子节点                    
+   
+   - 旧有子节点，新没有子节点 => 删除旧的子节点
+   
+   - 新旧节点是文本节点，若文本内容不相同 => 新文本替换旧文本
 
-         => 旧有子节点，新没有子节点 => 删除旧的子节点
-
-         => 新旧都有子节点，执行updateChildren()
-
-3. updateChildren()对子节点列表进行同级比对
+3. updateChildren()同级比对子节点列表
    
    4 个指针指向新旧子节点列表的头和尾，然后两两分别进行比较
    
    【旧头跟新头比较，旧头跟新尾比较，旧尾跟新头比较，旧尾跟新尾比较】
    
-   比较成功后，真实dom的渲染结果以新节点为准，比较成功的头指针会向右移动，尾指针向左移动
+   如果比较成功，真实dom的渲染结果以新虚拟节点为准，比较成功的头指针会向右移动，尾指针向左移动，当头指针移动到尾指针右侧时就终止比较
    
-   当头指针移动到尾指针右侧时就终止比较
+   如果以上四种比较都没有成功，则比较新旧虚拟节点的key值，如果key值相同则复用，并移动到新虚拟dom的位置
    
-   如果以上四种比较都没有成功，则比较新旧节点的key值，如果key值相同则复用
+   https://github.com/lihongxun945/myblog/issues/33
 
 ## 5. vue 中 key 的作用
 
@@ -1276,4 +1315,4 @@ vue为什么要优先使用微任务实现nextTick？
 
 优先使用微任务实现，本次事件循环就能获得更新的dom
 
-如果使用宏任务，要等到下一次才能获得更新的dom
+如果使用宏任务，要等到下一次才能获得更新的dom《
